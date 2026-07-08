@@ -3,7 +3,7 @@ require_once __DIR__ . '/../db.php';
 
 // ─── Login-Prüfung (einfacher Passwortschutz) ───
 $dashboardUser = 'admin';
-$dashboardPass = 'DeinSicheresPasswort123!';
+$dashboardPass = '#58DS579!';
 
 // ─── Session starten ───
 if (session_status() === PHP_SESSION_NONE) {
