@@ -1,5 +1,6 @@
 <?php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 require_once 'db.php';
 
 try {
@@ -7,7 +8,7 @@ try {
     $stmt = $pdo->query("SELECT username FROM users ORDER BY username");
     $users = $stmt->fetchAll(PDO::FETCH_COLUMN);
     echo json_encode($users);
-} catch (PDOException $e) {
+} catch (Exception $e) {
     echo json_encode([]);
 }
 ?>
