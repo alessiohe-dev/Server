@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'db.php');
+require_once 'db.php';  // ← KEINE KLAMMER!
 
 $username = $_POST['username'] ?? '';
 $password = $_POST['password'] ?? '';
@@ -15,27 +15,31 @@ if (strlen($username) < 3 || strlen($password) < 3) {
     exit;
 }
 
-$pdo = getDBConnection();
+try {
+    $pdo = getDBConnection();
 
-// ─── Prüfen, ob Benutzer existiert ───
-$stmt = $pdo->prepare("SELECT id FROM users WHERE username = :username");
-$stmt->execute(['username' => $username]);
-if ($stmt->fetch()) {
-    echo json_encode(['success' => false, 'error' => 'Benutzername bereits vergeben']);
-    exit;
+    // ─── Prüfen, ob Benutzer existiert ───
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE username = :username");
+    $stmt->execute(['username' => $username]);
+    if ($stmt->fetch()) {
+        echo json_encode(['success' => false, 'error' => 'Benutzername bereits vergeben']);
+        exit;
+    }
+
+    // ─── Passwort hashen und Benutzer erstellen ───
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $pdo->prepare("
+        INSERT INTO users (username, password, created_at) 
+        VALUES (:username, :password, NOW())
+    ");
+    $stmt->execute([
+        'username' => $username,
+        'password' => $hashedPassword
+    ]);
+
+    echo json_encode(['success' => true, 'message' => 'Benutzer erfolgreich registriert']);
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'error' => 'Datenbankfehler: ' . $e->getMessage()]);
 }
-
-// ─── Passwort hashen und Benutzer erstellen ───
-$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-$stmt = $pdo->prepare("
-    INSERT INTO users (username, password, created_at) 
-    VALUES (:username, :password, NOW())
-");
-$stmt->execute([
-    'username' => $username,
-    'password' => $hashedPassword
-]);
-
-echo json_encode(['success' => true, 'message' => 'Benutzer erfolgreich registriert']);
 ?>
