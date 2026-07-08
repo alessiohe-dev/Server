@@ -6,14 +6,20 @@ function getDBConnection() {
     $user = getenv('DB_USER');
     $password = getenv('DB_PASSWORD');
 
+    // ─── Pfad zum CA-Zertifikat in Render ───
+    $caCert = '/etc/secrets/ca.pem';
+
     try {
-        // ─── OHNE SSL (für den Test) ───
         $pdo = new PDO(
             "mysql:host=$host;port=$port;dbname=$dbname",
             $user,
-            $password
+            $password,
+            [
+                PDO::MYSQL_ATTR_SSL_CA => $caCert,
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]
         );
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         return $pdo;
     } catch (PDOException $e) {
         die("Datenbankverbindung fehlgeschlagen: " . $e->getMessage());
