@@ -6,13 +6,12 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once 'db.php';
 
-// ─── 🔥 DEBUG: Log-Datei ───
-error_log("[register.php] ===== START ===== " . date('Y-m-d H:i:s'));
+// ─── 🔥 UNTERSTÜTZT GET + POST ───
+$username = $_POST['username'] ?? $_GET['username'] ?? '';
+$password = $_POST['password'] ?? $_GET['password'] ?? '';
 
-$username = $_POST['username'] ?? '';
-$password = $_POST['password'] ?? '';
-
-error_log("[register.php] Username: $username");
+error_log("[register.php] ===== START ===== ");
+error_log("[register.php] Username: $username, Password: $password");
 
 if (empty($username) || empty($password)) {
     error_log("[register.php] ❌ Fehler: Felder leer");
@@ -27,8 +26,6 @@ if (strlen($username) < 3 || strlen($password) < 3) {
 }
 
 try {
-    // ─── Datenbankverbindung ───
-    error_log("[register.php] Verbinde zur Datenbank...");
     $pdo = getDBConnection();
     error_log("[register.php] ✅ Verbindung erfolgreich");
 
@@ -43,7 +40,6 @@ try {
 
     // ─── Passwort hashen ───
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    error_log("[register.php] Passwort gehasht");
 
     // ─── Benutzer erstellen ───
     $stmt = $pdo->prepare("
@@ -55,14 +51,11 @@ try {
         'password' => $hashedPassword
     ]);
 
-    error_log("[register.php] ✅ Benutzer erfolgreich registriert: $username");
+    error_log("[register.php] ✅ Benutzer registriert: $username");
     echo json_encode(['success' => true, 'message' => 'Benutzer erfolgreich registriert']);
 
 } catch (PDOException $e) {
     error_log("[register.php] ❌ PDO-Fehler: " . $e->getMessage());
     echo json_encode(['success' => false, 'error' => 'Datenbankfehler: ' . $e->getMessage()]);
-} catch (Exception $e) {
-    error_log("[register.php] ❌ Allgemeiner Fehler: " . $e->getMessage());
-    echo json_encode(['success' => false, 'error' => 'Fehler: ' . $e->getMessage()]);
 }
 ?>
