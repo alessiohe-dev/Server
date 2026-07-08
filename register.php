@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'db.php';
+require_once 'db.php');
 
 $username = $_POST['username'] ?? '';
 $password = $_POST['password'] ?? '';
@@ -17,7 +17,7 @@ if (strlen($username) < 3 || strlen($password) < 3) {
 
 $pdo = getDBConnection();
 
-// ─── Prüfen, ob Benutzer bereits existiert ───
+// ─── Prüfen, ob Benutzer existiert ───
 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = :username");
 $stmt->execute(['username' => $username]);
 if ($stmt->fetch()) {
