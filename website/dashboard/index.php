@@ -1,24 +1,29 @@
 <?php
-// ─── FEHLER ANZEIGEN (für Debug) ───
+// ─── FEHLER ANZEIGEN ───
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // ─── KONFIGURATION ───
 $dashboardUser = 'admin';
-$dashboardPass = '#58DS579!';  // ← DEIN PASSWORT
+$dashboardPass = '#58DS579!';
 
 // ─── SESSION STARTEN ───
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ─── 🔥 DEBUG: ZEIGE ALLE POST-DATEN ───
+error_log("[Dashboard] ===== START ===== ");
+error_log("[Dashboard] POST-Daten: " . print_r($_POST, true));
+error_log("[Dashboard] Session: " . print_r($_SESSION, true));
+
 // ─── LOGIN VERARBEITEN ───
-$loginError = '';
-if ($_POST['login'] ?? false) {
+if (isset($_POST['login']) || isset($_POST['submit']) || isset($_POST['action'])) {
+    error_log("[Dashboard] 🔍 Login-Button wurde gedrückt!");
+    
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    // ─── 🔥 DEBUG: Zeige, was eingegeben wurde ───
     error_log("[Dashboard] Login-Versuch: username='$username', password='$password'");
     
     if ($username === $dashboardUser && $password === $dashboardPass) {
@@ -30,6 +35,8 @@ if ($_POST['login'] ?? false) {
         $loginError = 'Falscher Benutzername oder Passwort!';
         error_log("[Dashboard] ❌ Login fehlgeschlagen!");
     }
+} else {
+    error_log("[Dashboard] ⚠️ Kein Login-Button erkannt. POST-Daten: " . print_r($_POST, true));
 }
 
 // ─── LOGOUT ───
@@ -41,8 +48,6 @@ if ($_GET['logout'] ?? false) {
 
 // ─── PRÜFEN OB EINGELOGGT ───
 $isLoggedIn = isset($_SESSION['dashboard_logged_in']) && $_SESSION['dashboard_logged_in'] === true;
-
-// ─── 🔥 DEBUG: Zeige Session-Status ───
 error_log("[Dashboard] Session-Status: " . ($isLoggedIn ? 'Eingeloggt' : 'Nicht eingeloggt'));
 
 // ─── WENN NICHT EINGELOGGT: LOGIN ZEIGEN ───
@@ -165,7 +170,7 @@ if (!$isLoggedIn) {
         </div>
         <p class="sub">Admin-Dashboard Login</p>
         
-        <?php if ($loginError): ?>
+        <?php if (isset($loginError)): ?>
             <div class="error">❌ <?php echo htmlspecialchars($loginError); ?></div>
         <?php endif; ?>
         
@@ -176,7 +181,7 @@ if (!$isLoggedIn) {
             </div>
             <div class="form-group">
                 <label for="password">🔑 Passwort</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" value="#58DS579!" required>
             </div>
             <button type="submit" name="login" class="btn-login">🔓 Einloggen</button>
         </form>
