@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
 # ─── Apache konfigurieren ───
 COPY . /var/www/html/
 
+# ─── 🔥 DocumentRoot auf den website-Ordner setzen ───
+RUN sed -i 's!/var/www/html!/var/www/html/website!g' /etc/apache2/sites-available/000-default.conf
+
 RUN chown -R www-data:www-data /var/www/html/
 RUN a2enmod rewrite
 
