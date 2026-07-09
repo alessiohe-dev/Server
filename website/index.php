@@ -734,7 +734,7 @@
     </div>
 </section>
 
-<!-- ─── PLATTFORMEN ─── -->
+<!-- ─── PLATTFORMEN (GRID) ─── -->
 <section id="platforms" class="container fade-section">
     <h2 class="section-title">Plattformen</h2>
     <p class="section-sub">Wähle deine Version</p>
@@ -744,42 +744,54 @@
             <div class="platform-icon"><i class="fab fa-windows"></i></div>
             <h3>Windows</h3>
             <p>Für Windows 10/11</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
         <!-- macOS -->
         <div class="platform-card">
             <div class="platform-icon"><i class="fab fa-apple"></i></div>
             <h3>macOS</h3>
             <p>Für macOS 12+</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
         <!-- Linux -->
         <div class="platform-card">
             <div class="platform-icon"><i class="fab fa-linux"></i></div>
             <h3>Linux</h3>
             <p>Für Ubuntu, Debian, Fedora</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
         <!-- Android -->
         <div class="platform-card">
             <div class="platform-icon"><i class="fab fa-android"></i></div>
             <h3>Android</h3>
             <p>Für Android 8+</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
         <!-- iOS -->
         <div class="platform-card">
             <div class="platform-icon"><i class="fas fa-mobile-alt"></i></div>
             <h3>iOS / iPadOS</h3>
             <p>Für iPhone/iPad (TestFlight)</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
         <!-- Web -->
         <div class="platform-card">
             <div class="platform-icon"><i class="fas fa-globe"></i></div>
             <h3>Web (WebGL)</h3>
             <p>Browser-Version</p>
-            <a href="#" class="btn-download"><i class="fas fa-cloud-download-alt"></i> Download</a>
+            <a href="https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw" class="btn-download" target="_blank">
+                <i class="fas fa-cloud-download-alt"></i> Download
+            </a>
         </div>
     </div>
 </section>
@@ -892,7 +904,7 @@
         <div class="footer-bottom">
             <span>&copy; 2025 DartSystem – Alle Rechte vorbehalten</span>
             <span>
-                <a href="https://dart-system-server.onrender.com/dashboard/" class="dashboard-link">
+                <a href="https://dartsystem.alessiohennecke.de/website/dashboard/" class="dashboard-link">
                     📊 Dashboard
                 </a>
                 <span style="margin:0 8px;">·</span>
