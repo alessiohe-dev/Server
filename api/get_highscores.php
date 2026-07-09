@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
-require_once 'db.php';
+header('Access-Control-Allow-Origin: *');
+require_once __DIR__ . '/../db.php';
 
 $levelId = $_GET['levelId'] ?? '';
 
