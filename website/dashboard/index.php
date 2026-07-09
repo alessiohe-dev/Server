@@ -16,12 +16,21 @@ if (session_status() === PHP_SESSION_NONE) {
 if ($_POST['login'] ?? false) {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
+    
+    // ─── 🔥 DEBUG: Schreibe in die Logs ───
+    error_log("[Dashboard] ===== LOGIN-VERSUCH ===== ");
+    error_log("[Dashboard] Username: '$username'");
+    error_log("[Dashboard] Password: '$password'");
+    error_log("[Dashboard] Erwartet: admin / #58DS579!");
+    
     if ($username === $dashboardUser && $password === $dashboardPass) {
         $_SESSION['dashboard_logged_in'] = true;
+        error_log("[Dashboard] ✅ Login erfolgreich! Session gesetzt.");
         header('Location: index.php');
         exit;
     } else {
         $loginError = 'Falscher Benutzername oder Passwort!';
+        error_log("[Dashboard] ❌ Login fehlgeschlagen!");
     }
 }
 
@@ -34,7 +43,9 @@ if ($_GET['logout'] ?? false) {
 
 // ─── PRÜFEN OB EINGELOGGT ───
 $isLoggedIn = isset($_SESSION['dashboard_logged_in']) && $_SESSION['dashboard_logged_in'] === true;
+error_log("[Dashboard] Session-Status: " . ($isLoggedIn ? 'Eingeloggt' : 'Nicht eingeloggt'));
 
+// ─── WENN NICHT EINGELOGGT: LOGIN ZEIGEN ───
 if (!$isLoggedIn) {
 ?>
 <!DOCTYPE html>
@@ -63,6 +74,9 @@ if (!$isLoggedIn) {
         .login-box .error { background: rgba(239,68,68,0.15); color: #f87171; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
         .login-box .back-link { display: block; text-align: center; margin-top: 16px; color: #60a5fa; text-decoration: none; font-size: 14px; }
         .login-box .back-link:hover { text-decoration: underline; }
+        .debug-info { margin-top: 20px; padding: 12px; background: #0b1329; border-radius: 8px; font-size: 12px; color: #475569; font-family: monospace; word-break: break-all; }
+        .debug-info .ok { color: #6ee7b7; }
+        .debug-info .error { color: #f87171; }
     </style>
 </head>
 <body>
@@ -79,11 +93,18 @@ if (!$isLoggedIn) {
             </div>
             <div class="form-group">
                 <label for="password">🔑 Passwort</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" name="password" value="#58DS579!" required>
             </div>
             <button type="submit" name="login" class="btn-login">🔓 Einloggen</button>
         </form>
         <a href="/" class="back-link">← Zurück zur Hauptseite</a>
+        
+        <!-- ─── 🔥 DEBUG-INFO ─── -->
+        <div class="debug-info">
+            <p><span class="ok">✅</span> Session-ID: <?php echo session_id(); ?></p>
+            <p><span class="ok">✅</span> Session-Status: <?php echo session_status() === 2 ? 'Aktiv' : 'Inaktiv'; ?></p>
+            <p><span class="ok">✅</span> PHP Version: <?php echo phpversion(); ?></p>
+        </div>
     </div>
 </body>
 </html>
@@ -154,6 +175,7 @@ $totalLicenses = count($licenses);
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
+        /* ─── Alle Styles (wie vorher) ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
