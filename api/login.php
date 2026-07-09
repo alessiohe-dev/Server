@@ -3,10 +3,9 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+require_once __DIR__ . '/../db.php';
 
-require_once 'db.php';
-
-// ─── 🔥 UNTERSTÜTZT GET + POST ───
+// ─── UNTERSTÜTZT GET + POST ───
 $username = $_POST['username'] ?? $_GET['username'] ?? '';
 $password = $_POST['password'] ?? $_GET['password'] ?? '';
 
