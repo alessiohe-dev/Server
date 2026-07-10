@@ -12,15 +12,18 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ─── LOGIN VERARBEITEN ───
-if ($_POST['login'] ?? false) {
+// ─── 🔥 LOGIN VERARBEITEN (mit Debug) ───
+$loginError = '';
+
+// ─── Prüfe sowohl POST als auch GET (für Test) ───
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log("[Dashboard] ===== POST-Request empfangen =====");
+    error_log("[Dashboard] POST-Daten: " . print_r($_POST, true));
+    
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     
-    // ─── 🔥 DEBUG: Schreibe in die Logs ───
-    error_log("[Dashboard] ===== LOGIN-VERSUCH ===== ");
-    error_log("[Dashboard] Username: '$username'");
-    error_log("[Dashboard] Password: '$password'");
+    error_log("[Dashboard] Login-Versuch: username='$username', password='$password'");
     error_log("[Dashboard] Erwartet: admin / #58DS579!");
     
     if ($username === $dashboardUser && $password === $dashboardPass) {
@@ -74,18 +77,32 @@ if (!$isLoggedIn) {
         .login-box .error { background: rgba(239,68,68,0.15); color: #f87171; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
         .login-box .back-link { display: block; text-align: center; margin-top: 16px; color: #60a5fa; text-decoration: none; font-size: 14px; }
         .login-box .back-link:hover { text-decoration: underline; }
-        .debug-info { margin-top: 20px; padding: 12px; background: #0b1329; border-radius: 8px; font-size: 12px; color: #475569; font-family: monospace; word-break: break-all; }
+        .debug-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: #0b1329;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #475569;
+            font-family: monospace;
+            word-break: break-all;
+        }
         .debug-info .ok { color: #6ee7b7; }
         .debug-info .error { color: #f87171; }
     </style>
 </head>
 <body>
     <div class="login-box">
-        <div class="logo"><i class="fas fa-bullseye"></i><span>Dart<span class="highlight">System</span></span></div>
+        <div class="logo">
+            <i class="fas fa-bullseye"></i>
+            <span>Dart<span class="highlight">System</span></span>
+        </div>
         <p class="sub">Admin-Dashboard Login</p>
-        <?php if (isset($loginError)): ?>
+        
+        <?php if ($loginError): ?>
             <div class="error">❌ <?php echo htmlspecialchars($loginError); ?></div>
         <?php endif; ?>
+        
         <form method="post">
             <div class="form-group">
                 <label for="username">👤 Benutzername</label>
@@ -95,7 +112,7 @@ if (!$isLoggedIn) {
                 <label for="password">🔑 Passwort</label>
                 <input type="password" id="password" name="password" value="#58DS579!" required>
             </div>
-            <button type="submit" name="login" class="btn-login">🔓 Einloggen</button>
+            <button type="submit" class="btn-login">🔓 Einloggen</button>
         </form>
         <a href="/" class="back-link">← Zurück zur Hauptseite</a>
         
@@ -104,6 +121,7 @@ if (!$isLoggedIn) {
             <p><span class="ok">✅</span> Session-ID: <?php echo session_id(); ?></p>
             <p><span class="ok">✅</span> Session-Status: <?php echo session_status() === 2 ? 'Aktiv' : 'Inaktiv'; ?></p>
             <p><span class="ok">✅</span> PHP Version: <?php echo phpversion(); ?></p>
+            <p><span class="ok">✅</span> POST empfangen: <?php echo $_SERVER['REQUEST_METHOD'] === 'POST' ? 'Ja' : 'Nein'; ?></p>
         </div>
     </div>
 </body>
@@ -175,7 +193,6 @@ $totalLicenses = count($licenses);
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* ─── Alle Styles (wie vorher) ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
