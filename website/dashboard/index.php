@@ -1,7 +1,15 @@
 <?php
-// ─── FEHLER ANZEIGEN ───
+// ─── HARTE FEHLERANZEIGE ───
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
+// ─── DATENBANK EINBINDEN (passe den Pfad an!) ───
+$dbPath = __DIR__ . '/../db.php';
+if (!file_exists($dbPath)) {
+    die("❌ db.php nicht gefunden unter: " . $dbPath);
+}
+require_once $dbPath;
 
 // ─── KONFIGURATION ───
 $dashboardUser = 'admin';
@@ -38,13 +46,78 @@ $isLoggedIn = isset($_SESSION['dashboard_logged_in']) && $_SESSION['dashboard_lo
 
 // ─── WENN NICHT EINGELOGGT: LOGIN ZEIGEN ───
 if (!$isLoggedIn) {
-    // ... (Login-Formular bleibt unverändert, ich lasse es hier aus Platzgründen weg, aber es ist im Original vorhanden)
-    // Da du das komplette Skript willst, gebe ich es am Ende vollständig aus.
+?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Dashboard Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: #111a33; border: 1px solid #1e2d4a; border-radius: 20px; padding: 48px 40px; width: 100%; max-width: 400px; }
+        .login-box .logo { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+        .login-box .logo .highlight { color: #ef4444; }
+        .login-box .logo i { font-size: 28px; color: #3b82f6; }
+        .login-box p.sub { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 28px; }
+        .login-box .form-group { margin-bottom: 16px; }
+        .login-box label { display: block; font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
+        .login-box input { width: 100%; padding: 12px 14px; background: #0b1329; border: 1px solid #1e2d4a; border-radius: 10px; color: #e2e8f0; font-size: 15px; transition: border-color 0.2s; }
+        .login-box input:focus { outline: none; border-color: #3b82f6; }
+        .btn-login { width: 100%; padding: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
+        .btn-login:hover { background: #2563eb; }
+        .login-box .error { background: rgba(239,68,68,0.15); color: #f87171; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
+        .login-box .back-link { display: block; text-align: center; margin-top: 16px; color: #60a5fa; text-decoration: none; font-size: 14px; }
+        .login-box .back-link:hover { text-decoration: underline; }
+        .debug-info { margin-top: 20px; padding: 12px; background: #0b1329; border-radius: 8px; font-size: 12px; color: #475569; font-family: monospace; word-break: break-all; }
+        .debug-info .ok { color: #6ee7b7; }
+        .debug-info .error { color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo">
+            <i class="fas fa-bullseye"></i>
+            <span>Dart<span class="highlight">System</span></span>
+        </div>
+        <p class="sub">Admin-Dashboard Login</p>
+        
+        <?php if ($loginError): ?>
+            <div class="error">❌ <?php echo htmlspecialchars($loginError); ?></div>
+        <?php endif; ?>
+        
+        <form method="post">
+            <div class="form-group">
+                <label for="username">👤 Benutzername</label>
+                <input type="text" id="username" name="username" value="admin" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">🔑 Passwort</label>
+                <input type="password" id="password" name="password" value="#58DS579!" required>
+            </div>
+            <button type="submit" class="btn-login">🔓 Einloggen</button>
+        </form>
+        <a href="/" class="back-link">← Zurück zur Hauptseite</a>
+        
+        <div class="debug-info">
+            <p><span class="ok">✅</span> Session-ID: <?php echo session_id(); ?></p>
+            <p><span class="ok">✅</span> Session-Status: <?php echo session_status() === 2 ? 'Aktiv' : 'Inaktiv'; ?></p>
+            <p><span class="ok">✅</span> PHP Version: <?php echo phpversion(); ?></p>
+            <p><span class="ok">✅</span> POST empfangen: <?php echo $_SERVER['REQUEST_METHOD'] === 'POST' ? 'Ja' : 'Nein'; ?></p>
+        </div>
+    </div>
+</body>
+</html>
+<?php
     exit;
 }
 
 // ─── ✅ EINGELOGGT → DASHBOARD ───
-require_once __DIR__ . '/../../db.php';
+// Die Datenbankverbindung ist bereits durch require_once verfügbar
 
 // ─── Aktionen verarbeiten (GET & POST) ───
 $message = '';
@@ -139,7 +212,7 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* ─── Alle Styles wie gehabt (aus Platzgründen hier nur die wichtigsten Ergänzungen) ─── */
+        /* ─── Alle Styles ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
@@ -297,7 +370,7 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
             </div>
         </div>
 
-        <!-- ─── LIZENZ-TAB (ERWEITERT) ─── -->
+        <!-- ─── LIZENZ-TAB ─── -->
         <div id="tab-licenses" style="display: <?php echo $currentTab === 'licenses' ? 'block' : 'none'; ?>;">
             <div class="table-wrapper">
                 <div class="table-header">
@@ -363,7 +436,7 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
 <!-- ─── FAB: NEUE LIZENZ ─── -->
 <button class="fab" id="fabLicense" title="Neue Lizenz generieren"><i class="fas fa-plus"></i></button>
 
-<!-- ─── MODAL: LIZENZ GENERIEREN (erweitert) ─── -->
+<!-- ─── MODAL: LIZENZ GENERIEREN ─── -->
 <div class="modal-overlay" id="licenseModal">
     <div class="modal">
         <h2>🔑 Lizenz generieren</h2>
