@@ -1,7 +1,6 @@
 <?php
 header('Content-Type: application/json');
 
-// Datenbankverbindung
 $host = 'localhost';
 $dbname = 'dart_system_db';
 $user = 'dein_user';
@@ -15,7 +14,6 @@ try {
     exit;
 }
 
-// JSON-Daten aus Unity empfangen
 $data = json_decode(file_get_contents('php://input'), true);
 
 if (!isset($data['device_id']) || !isset($data['license_key'])) {
@@ -26,19 +24,14 @@ if (!isset($data['device_id']) || !isset($data['license_key'])) {
 $deviceId = $data['device_id'];
 $licenseKey = $data['license_key'];
 
-// Lizenz in der Datenbank prüfen
+// Lizenz prüfen
 $stmt = $pdo->prepare("
-    SELECT id, is_active, expires_at 
+    SELECT id, is_active, expires_at, device_id
     FROM licenses 
-    WHERE license_key = :license_key 
-    AND (device_fingerprint = :device_id OR device_fingerprint IS NULL)
+    WHERE license_key = :license_key
 ");
 
-$stmt->execute([
-    ':license_key' => $licenseKey,
-    ':device_id' => $deviceId
-]);
-
+$stmt->execute([':license_key' => $licenseKey]);
 $license = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$license) {
@@ -46,28 +39,32 @@ if (!$license) {
     exit;
 }
 
-// Prüfen, ob Lizenz aktiv ist
 if ((int)$license['is_active'] !== 1) {
-    echo json_encode(['success' => false, 'message' => 'Lizenz ist deaktiviert']);
+    echo json_encode(['success' => false, 'message' => 'Lizenz deaktiviert']);
     exit;
 }
 
-// Prüfen, ob Lizenz abgelaufen ist
 if ($license['expires_at'] !== null && strtotime($license['expires_at']) < time()) {
     echo json_encode(['success' => false, 'message' => 'Lizenz abgelaufen']);
     exit;
 }
 
-// Falls device_fingerprint noch NULL ist, jetzt setzen
-if ($license['device_fingerprint'] === null) {
-    $update = $pdo->prepare("UPDATE licenses SET device_fingerprint = :device_id WHERE id = :id");
+// Prüfen: Ist eine Device ID bereits zugewiesen?
+if ($license['device_id'] !== null && $license['device_id'] !== $deviceId) {
+    // Diese Lizenz ist bereits an eine andere Device ID gebunden!
+    echo json_encode(['success' => false, 'message' => 'Lizenz bereits an anderes Gerät gebunden']);
+    exit;
+}
+
+// Falls noch keine Device ID hinterlegt ist → jetzt setzen
+if ($license['device_id'] === null) {
+    $update = $pdo->prepare("UPDATE licenses SET device_id = :device_id WHERE id = :id");
     $update->execute([
         ':device_id' => $deviceId,
         ':id' => $license['id']
     ]);
 }
 
-// Erfolgreich
 echo json_encode([
     'success' => true,
     'message' => 'Lizenz gültig',
