@@ -94,7 +94,6 @@ if (!$isLoggedIn) {
             <button type="submit" class="btn-login">🔓 Einloggen</button>
         </form>
         <a href="/" class="back-link">← Zurück zur Hauptseite</a>
-        
         <div class="debug-info">
             <p><span class="ok">✅</span> Session-ID: <?php echo session_id(); ?></p>
             <p><span class="ok">✅</span> Session-Status: <?php echo session_status() === 2 ? 'Aktiv' : 'Inaktiv'; ?></p>
@@ -109,10 +108,28 @@ if (!$isLoggedIn) {
 }
 
 // ─── ✅ EINGELOGGT → DASHBOARD ───
-// ─── ABSOLUTER PFAD ZUR db.php ───
-$dbPath = '/var/www/html/website/db.php';
-if (!file_exists($dbPath)) {
-    die("❌ db.php nicht gefunden unter: " . $dbPath);
+// ─── DYNAMISCHE SUCHE NACH db.php ───
+function findDbFile() {
+    $possiblePaths = [
+        __DIR__ . '/../db.php',          // eine Ebene höher (website/)
+        __DIR__ . '/../../db.php',       // zwei Ebenen höher
+        __DIR__ . '/db.php',             // gleiches Verzeichnis
+        $_SERVER['DOCUMENT_ROOT'] . '/website/db.php',
+        $_SERVER['DOCUMENT_ROOT'] . '/db.php',
+        '/var/www/html/website/db.php',
+        '/var/www/website/db.php',
+    ];
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path)) {
+            return $path;
+        }
+    }
+    return false;
+}
+
+$dbPath = findDbFile();
+if (!$dbPath) {
+    die("❌ db.php konnte nicht gefunden werden. Bitte überprüfe den Pfad.");
 }
 require_once $dbPath;
 
@@ -367,7 +384,7 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
             </div>
         </div>
 
-        <!-- ─── LIZENZ-TAB (ERWEITERT) ─── -->
+        <!-- ─── LIZENZ-TAB ─── -->
         <div id="tab-licenses" style="display: <?php echo $currentTab === 'licenses' ? 'block' : 'none'; ?>;">
             <div class="table-wrapper">
                 <div class="table-header">
