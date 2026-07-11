@@ -109,7 +109,12 @@ if (!$isLoggedIn) {
 }
 
 // ─── ✅ EINGELOGGT → DASHBOARD ───
-require_once __DIR__ . '/../db.php';  // ← WICHTIG: Korrekter Pfad!
+// ─── ABSOLUTER PFAD ZUR db.php ───
+$dbPath = '/var/www/html/website/db.php';
+if (!file_exists($dbPath)) {
+    die("❌ db.php nicht gefunden unter: " . $dbPath);
+}
+require_once $dbPath;
 
 // ─── Aktionen verarbeiten ───
 $message = '';
