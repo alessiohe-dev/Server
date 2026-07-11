@@ -1,15 +1,7 @@
 <?php
-// ─── HARTE FEHLERANZEIGE ───
+// ─── FEHLER ANZEIGEN ───
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-
-// ─── DATENBANK EINBINDEN (passe den Pfad an!) ───
-$dbPath = __DIR__ . '/../db.php';
-if (!file_exists($dbPath)) {
-    die("❌ db.php nicht gefunden unter: " . $dbPath);
-}
-require_once $dbPath;
 
 // ─── KONFIGURATION ───
 $dashboardUser = 'admin';
@@ -117,9 +109,9 @@ if (!$isLoggedIn) {
 }
 
 // ─── ✅ EINGELOGGT → DASHBOARD ───
-// Die Datenbankverbindung ist bereits durch require_once verfügbar
+require_once __DIR__ . '/../db.php';  // ← WICHTIG: Korrekter Pfad!
 
-// ─── Aktionen verarbeiten (GET & POST) ───
+// ─── Aktionen verarbeiten ───
 $message = '';
 $messageType = '';
 
@@ -370,7 +362,7 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
             </div>
         </div>
 
-        <!-- ─── LIZENZ-TAB ─── -->
+        <!-- ─── LIZENZ-TAB (ERWEITERT) ─── -->
         <div id="tab-licenses" style="display: <?php echo $currentTab === 'licenses' ? 'block' : 'none'; ?>;">
             <div class="table-wrapper">
                 <div class="table-header">
