@@ -21,7 +21,7 @@ $user = current_user();
     <meta property="og:description" content="<?= e($pageDescription) ?>">
     <meta property="og:image" content="<?= e(app_url('assets/images/og.jpg')) ?>">
     <meta name="twitter:card" content="summary_large_image">
-    <link rel="icon" href="/assets/images/logo-mark.svg" type="image/svg+xml">
+    <link rel="icon" href="/assets/images/logo-mark.svg?v=2" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
@@ -30,7 +30,7 @@ $user = current_user();
 </head>
 <body>
 <header class="site-header">
-    <a class="brand" href="/" aria-label="DartSystem Startseite"><img class="brand-mark" src="/assets/images/logo-mark.svg" alt="" width="38" height="38"><span>Dart<span>System</span></span></a>
+    <a class="brand" href="/" aria-label="DartSystem Startseite"><img class="brand-mark" src="/assets/images/logo-mark.svg?v=2" alt="" width="38" height="38"><span>Dart<span>System</span></span></a>
     <button class="menu-button" type="button" aria-label="Menü öffnen" aria-expanded="false">☰</button>
     <nav class="desktop-nav" aria-label="Hauptnavigation">
         <a class="<?= $activePage === 'produkt' ? 'active' : '' ?>" href="/produkt.php">Produkt</a>
