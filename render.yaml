@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: dartsystem
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health.php
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_URL
+        value: https://dartsystem.alessiohennecke.de
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://dartsystem.alessiohennecke.de
+      - key: MEGA_DOWNLOAD_URL
+        value: https://mega.nz/folder/j8YGkayJ#CzyaHuJY68BtI0vFQcSFrw
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_SSL_CA
+        value: /etc/ssl/certs/ca-certificates.crt
+      - key: DB_HOST
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false

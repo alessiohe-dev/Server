@@ -1,35 +1,50 @@
 <?php
-function getDBConnection() {
-    $host = getenv('DB_HOST');
-    $port = getenv('DB_PORT');
-    $dbname = getenv('DB_NAME');
-    $user = getenv('DB_USER');
-    $password = getenv('DB_PASSWORD');
+declare(strict_types=1);
 
-    // ─── Fallback für lokale Tests ───
-    if (empty($host)) {
-        $host = 'gateway01.eu-central-1.prod.aws.tidbcloud.com';
-        $port = '4000';
-        $dbname = 'dart_system_db';
-        $user = '4MPtfFH9VXUnkZo.root';
-        $password = ''; // ← HIER DEIN PASSWORT EINTRAGEN!
+function getDBConnection(): PDO
+{
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $host = getenv('DB_HOST') ?: '';
+    $port = getenv('DB_PORT') ?: '4000';
+    $database = getenv('DB_NAME') ?: '';
+    $username = getenv('DB_USER') ?: '';
+    $password = getenv('DB_PASSWORD') ?: '';
+
+    if ($host === '' || $database === '' || $username === '' || $password === '') {
+        throw new RuntimeException('Die TiDB-Umgebungsvariablen DB_HOST, DB_NAME, DB_USER und DB_PASSWORD sind nicht vollständig konfiguriert.');
+    }
+
+    $dsn = sprintf(
+        'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+        $host,
+        $port,
+        $database
+    );
+
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_TIMEOUT => 10,
+    ];
+
+    $sslCa = getenv('DB_SSL_CA') ?: '/etc/ssl/certs/ca-certificates.crt';
+    if (defined('PDO::MYSQL_ATTR_SSL_CA') && is_file($sslCa)) {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+    }
+    if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
     }
 
     try {
-        $pdo = new PDO(
-            "mysql:host=$host;port=$port;dbname=$dbname",
-            $user,
-            $password,
-            [
-                PDO::MYSQL_ATTR_SSL_CA => false,
-                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]
-        );
+        $pdo = new PDO($dsn, $username, $password, $options);
         return $pdo;
-    } catch (PDOException $e) {
-        error_log("[db.php] ❌ Verbindungsfehler: " . $e->getMessage());
-        throw $e;
+    } catch (PDOException $exception) {
+        error_log('[database] Connection failed: ' . $exception->getMessage());
+        throw new RuntimeException('Datenbankverbindung fehlgeschlagen.', 0, $exception);
     }
 }
-?>
