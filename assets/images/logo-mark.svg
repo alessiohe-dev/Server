@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">DartSystem Logo</title>
+  <desc id="desc">Ein stilisiertes Dartboard mit einem Dartpfeil</desc>
+  <defs>
+    <linearGradient id="surface" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="0.5" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="dart" x1="10" y1="53" x2="40" y2="23" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BFDBFE"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#surface)"/>
+  <path d="M47.8 12.4c-4.7-2.4-10.4-2.7-15.6-.3-8.5 3.8-12.3 13.8-8.5 22.3 3.8 8.5 13.8 12.3 22.3 8.5 8.5-3.8 12.3-13.8 8.5-22.3" fill="none" stroke="#fff" stroke-opacity=".94" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="39.1" cy="27.5" r="9.2" fill="none" stroke="#fff" stroke-opacity=".52" stroke-width="3"/>
+  <circle cx="39.1" cy="27.5" r="3.2" fill="#fff"/>
+  <path d="M11 53 35.8 28.2" fill="none" stroke="url(#dart)" stroke-width="4" stroke-linecap="round"/>
+  <path d="m9.6 45.6 7.8 1-1 7.8-6.8-8.8Z" fill="#fff"/>
+  <path d="m32.8 24.5 8.3 3-5.3 5.3-3-8.3Z" fill="#fff"/>
+</svg>
