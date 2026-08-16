@@ -1,42 +1,122 @@
 <?php
-// ─── FEHLER ANZEIGEN ───
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+declare(strict_types=1);
 
-// ─── KONFIGURATION ───
+// ─────────────────────────────────────────────
+// ENTWICKLUNG / DEBUG
+// In Produktion besser auf 0 setzen.
+// ─────────────────────────────────────────────
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+
+// ─────────────────────────────────────────────
+// ADMIN KONFIGURATION
+// Empfehlung: Später auf password_hash/password_verify umstellen.
+// ─────────────────────────────────────────────
 $dashboardUser = 'admin';
 $dashboardPass = '#58DS579!';
 
-// ─── SESSION STARTEN ───
+// ─────────────────────────────────────────────
+// SESSION STARTEN
+// ─────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => !empty($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+
     session_start();
 }
 
-// ─── LOGIN VERARBEITEN ───
-$loginError = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'])) {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    if ($username === $dashboardUser && $password === $dashboardPass) {
-        $_SESSION['dashboard_logged_in'] = true;
-        header('Location: index.php');
-        exit;
-    } else {
-        $loginError = 'Falscher Benutzername oder Passwort!';
+// ─────────────────────────────────────────────
+// CSRF TOKEN
+// ─────────────────────────────────────────────
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+function csrf_token(): string
+{
+    return $_SESSION['csrf_token'] ?? '';
+}
+
+function e(mixed $value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function check_csrf(): void
+{
+    if (
+        $_SERVER['REQUEST_METHOD'] !== 'POST' ||
+        empty($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'] ?? '', (string)$_POST['csrf_token'])
+    ) {
+        http_response_code(403);
+        die('Ungültige Anfrage.');
     }
 }
 
-// ─── LOGOUT ───
-if ($_GET['logout'] ?? false) {
+// ─────────────────────────────────────────────
+// LOGIN VERARBEITEN
+// ─────────────────────────────────────────────
+$loginError = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_action'])) {
+    check_csrf();
+
+    $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+
+    if ($username === $dashboardUser && hash_equals($dashboardPass, $password)) {
+        session_regenerate_id(true);
+        $_SESSION['dashboard_logged_in'] = true;
+
+        header('Location: index.php');
+        exit;
+    }
+
+    $loginError = 'Falscher Benutzername oder Passwort!';
+}
+
+// ─────────────────────────────────────────────
+// LOGOUT
+// ─────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['logout_action'])) {
+    check_csrf();
+
+    $_SESSION = [];
+
+    if (ini_get('session.use_cookies')) {
+        $params = session_get_cookie_params();
+
+        setcookie(
+            session_name(),
+            '',
+            time() - 42000,
+            $params['path'],
+            $params['domain'] ?? '',
+            (bool)$params['secure'],
+            (bool)$params['httponly']
+        );
+    }
+
     session_destroy();
+
     header('Location: index.php');
     exit;
 }
 
-// ─── PRÜFEN OB EINGELOGGT ───
-$isLoggedIn = isset($_SESSION['dashboard_logged_in']) && $_SESSION['dashboard_logged_in'] === true;
+// ─────────────────────────────────────────────
+// LOGIN STATUS
+// ─────────────────────────────────────────────
+$isLoggedIn = !empty($_SESSION['dashboard_logged_in']);
 
-// ─── WENN NICHT EINGELOGGT: LOGIN ZEIGEN ───
+// ─────────────────────────────────────────────
+// LOGIN SEITE
+// ─────────────────────────────────────────────
 if (!$isLoggedIn) {
 ?>
 <!DOCTYPE html>
@@ -44,61 +124,215 @@ if (!$isLoggedIn) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔐 Dashboard Login</title>
+    <title>Dashboard Login | DartSystem</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: #111a33; border: 1px solid #1e2d4a; border-radius: 20px; padding: 48px 40px; width: 100%; max-width: 400px; }
-        .login-box .logo { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 28px; font-weight: 800; margin-bottom: 8px; }
-        .login-box .logo .highlight { color: #ef4444; }
-        .login-box .logo i { font-size: 28px; color: #3b82f6; }
-        .login-box p.sub { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 28px; }
-        .login-box .form-group { margin-bottom: 16px; }
-        .login-box label { display: block; font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
-        .login-box input { width: 100%; padding: 12px 14px; background: #0b1329; border: 1px solid #1e2d4a; border-radius: 10px; color: #e2e8f0; font-size: 15px; transition: border-color 0.2s; }
-        .login-box input:focus { outline: none; border-color: #3b82f6; }
-        .btn-login { width: 100%; padding: 14px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; margin-top: 8px; }
-        .btn-login:hover { background: #2563eb; }
-        .login-box .error { background: rgba(239,68,68,0.15); color: #f87171; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
-        .login-box .back-link { display: block; text-align: center; margin-top: 16px; color: #60a5fa; text-decoration: none; font-size: 14px; }
-        .login-box .back-link:hover { text-decoration: underline; }
-        .debug-info { margin-top: 20px; padding: 12px; background: #0b1329; border-radius: 8px; font-size: 12px; color: #475569; font-family: monospace; word-break: break-all; }
-        .debug-info .ok { color: #6ee7b7; }
-        .debug-info .error { color: #f87171; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.28), transparent 32%),
+                radial-gradient(circle at 80% 80%, rgba(239, 68, 68, 0.18), transparent 34%),
+                #070b16;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 430px;
+            padding: 42px 36px;
+            background: rgba(17, 26, 51, 0.88);
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+            backdrop-filter: blur(18px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .logo i {
+            color: #3b82f6;
+        }
+
+        .highlight {
+            color: #ef4444;
+        }
+
+        .sub {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 7px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px 14px;
+            background: rgba(11, 19, 41, 0.96);
+            border: 1px solid #223150;
+            border-radius: 12px;
+            color: #e2e8f0;
+            font-size: 15px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+        }
+
+        input::placeholder {
+            color: #475569;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.14);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.28);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 18px;
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .security-note {
+            margin-top: 18px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
-    <div class="login-box">
-        <div class="logo">
-            <i class="fas fa-bullseye"></i>
-            <span>Dart<span class="highlight">System</span></span>
-        </div>
-        <p class="sub">Admin-Dashboard Login</p>
-        
-        <?php if ($loginError): ?>
-            <div class="error">❌ <?php echo htmlspecialchars($loginError); ?></div>
-        <?php endif; ?>
-        
-        <form method="post">
-            <div class="form-group">
-                <label for="username">👤 Benutzername</label>
-                <input type="text" id="username" name="username" value="admin" required autofocus>
+    <div class="login-page">
+        <div class="login-box">
+            <div class="logo">
+                <i class="fas fa-bullseye"></i>
+                <span>Dart<span class="highlight">System</span></span>
             </div>
-            <div class="form-group">
-                <label for="password">🔑 Passwort</label>
-                <input type="password" id="password" name="password" value="#58DS579!" required>
+
+            <p class="sub">Admin-Dashboard Login</p>
+
+            <?php if ($loginError): ?>
+                <div class="error">❌ <?php echo e($loginError); ?></div>
+            <?php endif; ?>
+
+            <form method="post" autocomplete="on">
+                <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                <input type="hidden" name="login_action" value="1">
+
+                <div class="form-group">
+                    <label for="username">Benutzername</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        value=""
+                        required
+                        autofocus
+                        autocomplete="username"
+                        placeholder="Benutzername eingeben"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Passwort</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        value=""
+                        required
+                        autocomplete="current-password"
+                        placeholder="Passwort eingeben"
+                    >
+                </div>
+
+                <button type="submit" class="btn-login">Einloggen</button>
+            </form>
+
+            <a href="/" class="back-link">← Zurück zur Hauptseite</a>
+
+            <div class="security-note">
+                Passwort wird nicht vorausgefüllt. Session- und Debug-Informationen werden nicht öffentlich angezeigt.
             </div>
-            <button type="submit" class="btn-login">🔓 Einloggen</button>
-        </form>
-        <a href="/" class="back-link">← Zurück zur Hauptseite</a>
-        <div class="debug-info">
-            <p><span class="ok">✅</span> Session-ID: <?php echo session_id(); ?></p>
-            <p><span class="ok">✅</span> Session-Status: <?php echo session_status() === 2 ? 'Aktiv' : 'Inaktiv'; ?></p>
-            <p><span class="ok">✅</span> PHP Version: <?php echo phpversion(); ?></p>
-            <p><span class="ok">✅</span> POST empfangen: <?php echo $_SERVER['REQUEST_METHOD'] === 'POST' ? 'Ja' : 'Nein'; ?></p>
         </div>
     </div>
 </body>
@@ -107,204 +341,786 @@ if (!$isLoggedIn) {
     exit;
 }
 
-// ─── ✅ EINGELOGGT → DASHBOARD ───
-// ─── DYNAMISCHE SUCHE NACH db.php ───
-function findDbFile() {
+// ─────────────────────────────────────────────
+// DB.PHP SUCHEN
+// ─────────────────────────────────────────────
+function findDbFile(): string|false
+{
+    $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+
     $possiblePaths = [
-        __DIR__ . '/../db.php',          // eine Ebene höher (website/)
-        __DIR__ . '/../../db.php',       // zwei Ebenen höher
-        __DIR__ . '/db.php',             // gleiches Verzeichnis
-        $_SERVER['DOCUMENT_ROOT'] . '/website/db.php',
-        $_SERVER['DOCUMENT_ROOT'] . '/db.php',
+        __DIR__ . '/../db.php',
+        __DIR__ . '/../../db.php',
+        __DIR__ . '/db.php',
+        $documentRoot . '/website/db.php',
+        $documentRoot . '/db.php',
         '/var/www/html/website/db.php',
         '/var/www/website/db.php',
     ];
+
     foreach ($possiblePaths as $path) {
-        if (file_exists($path)) {
+        if ($path && file_exists($path)) {
             return $path;
         }
     }
+
     return false;
 }
 
 $dbPath = findDbFile();
+
 if (!$dbPath) {
-    die("❌ db.php konnte nicht gefunden werden. Bitte überprüfe den Pfad.");
+    die('❌ db.php konnte nicht gefunden werden. Bitte überprüfe den Pfad.');
 }
+
 require_once $dbPath;
 
-// ─── Aktionen verarbeiten ───
+// ─────────────────────────────────────────────
+// AKTIONEN VERARBEITEN
+// ─────────────────────────────────────────────
 $message = '';
 $messageType = '';
 
-// ─── Spieler löschen ───
-if ($_GET['delete_user'] ?? false) {
-    $username = $_GET['delete_user'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
+
     try {
         $pdo = getDBConnection();
-        $stmt = $pdo->prepare("DELETE FROM users WHERE username = :username");
-        $stmt->execute(['username' => $username]);
-        $message = "✅ Spieler '$username' wurde gelöscht!";
-        $messageType = 'success';
-    } catch (Exception $e) {
-        $message = "❌ Fehler beim Löschen: " . $e->getMessage();
+
+        if (isset($_POST['delete_user'])) {
+            $username = trim((string)$_POST['delete_user']);
+
+            if ($username === '') {
+                throw new RuntimeException('Ungültiger Benutzername.');
+            }
+
+            $stmt = $pdo->prepare('DELETE FROM users WHERE username = :username');
+            $stmt->execute(['username' => $username]);
+
+            $message = '✅ Spieler wurde gelöscht.';
+            $messageType = 'success';
+        }
+
+        if (isset($_POST['activate_license'])) {
+            $id = (int)$_POST['activate_license'];
+
+            $stmt = $pdo->prepare('UPDATE licenses SET is_active = 1 WHERE id = :id');
+            $stmt->execute(['id' => $id]);
+
+            $message = '✅ Lizenz wurde aktiviert.';
+            $messageType = 'success';
+        }
+
+        if (isset($_POST['deactivate_license'])) {
+            $id = (int)$_POST['deactivate_license'];
+
+            $stmt = $pdo->prepare('UPDATE licenses SET is_active = 0 WHERE id = :id');
+            $stmt->execute(['id' => $id]);
+
+            $message = '⚠️ Lizenz wurde deaktiviert.';
+            $messageType = 'success';
+        }
+
+        if (isset($_POST['delete_license'])) {
+            $id = (int)$_POST['delete_license'];
+
+            $stmt = $pdo->prepare('DELETE FROM licenses WHERE id = :id');
+            $stmt->execute(['id' => $id]);
+
+            $message = '🗑️ Lizenz wurde gelöscht.';
+            $messageType = 'success';
+        }
+    } catch (Throwable $e) {
+        $message = '❌ Fehler: ' . $e->getMessage();
         $messageType = 'error';
     }
 }
 
-// ─── Lizenz aktivieren ───
-if ($_GET['activate_license'] ?? false) {
-    $id = (int)$_GET['activate_license'];
-    try {
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("UPDATE licenses SET is_active = 1 WHERE id = :id");
-        $stmt->execute(['id' => $id]);
-        $message = "✅ Lizenz #$id wurde aktiviert!";
-        $messageType = 'success';
-    } catch (Exception $e) {
-        $message = "❌ Fehler beim Aktivieren: " . $e->getMessage();
-        $messageType = 'error';
-    }
+// ─────────────────────────────────────────────
+// DATEN LADEN
+// ─────────────────────────────────────────────
+try {
+    $pdo = getDBConnection();
+
+    $stmt = $pdo->query('SELECT id, username, level, experience, created_at FROM users ORDER BY id DESC');
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $stmt = $pdo->query('SELECT * FROM licenses ORDER BY id DESC');
+    $licenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    die('❌ Datenbankfehler: ' . e($e->getMessage()));
 }
 
-// ─── Lizenz deaktivieren ───
-if ($_GET['deactivate_license'] ?? false) {
-    $id = (int)$_GET['deactivate_license'];
-    try {
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("UPDATE licenses SET is_active = 0 WHERE id = :id");
-        $stmt->execute(['id' => $id]);
-        $message = "⚠️ Lizenz #$id wurde deaktiviert!";
-        $messageType = 'success';
-    } catch (Exception $e) {
-        $message = "❌ Fehler beim Deaktivieren: " . $e->getMessage();
-        $messageType = 'error';
-    }
-}
-
-// ─── Lizenz löschen ───
-if ($_GET['delete_license'] ?? false) {
-    $id = (int)$_GET['delete_license'];
-    try {
-        $pdo = getDBConnection();
-        $stmt = $pdo->prepare("DELETE FROM licenses WHERE id = :id");
-        $stmt->execute(['id' => $id]);
-        $message = "🗑️ Lizenz #$id wurde gelöscht!";
-        $messageType = 'success';
-    } catch (Exception $e) {
-        $message = "❌ Fehler beim Löschen: " . $e->getMessage();
-        $messageType = 'error';
-    }
-}
-
-// ─── Daten laden ───
-$pdo = getDBConnection();
-
-// Spieler
-$stmt = $pdo->query("SELECT id, username, level, experience, created_at FROM users ORDER BY id DESC");
-$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Lizenzen (mit allen Feldern)
-$stmt = $pdo->query("SELECT * FROM licenses ORDER BY id DESC");
-$licenses = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Statistik
 $totalUsers = count($users);
 $totalLicenses = count($licenses);
-$activeLicenses = array_reduce($licenses, function($carry, $item) {
-    return $carry + ($item['is_active'] ? 1 : 0);
+
+$activeLicenses = array_reduce($licenses, static function (int $carry, array $item): int {
+    return $carry + (!empty($item['is_active']) ? 1 : 0);
 }, 0);
+
+$expiredLicenses = array_reduce($licenses, static function (int $carry, array $item): int {
+    return $carry + (!empty($item['expires_at']) && strtotime((string)$item['expires_at']) < time() ? 1 : 0);
+}, 0);
+
+$currentTab = $_GET['tab'] ?? 'users';
+
+if (!in_array($currentTab, ['users', 'licenses'], true)) {
+    $currentTab = 'users';
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎯 DartSystem – Admin Dashboard</title>
+    <title>DartSystem – Admin Dashboard</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
-        /* ─── Alle Styles ─── */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: #0a0e1a; color: #e2e8f0; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        header { background: rgba(10,14,26,0.95); border-bottom: 1px solid #1a2332; padding: 0 24px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
-        .header-inner { display: flex; justify-content: space-between; align-items: center; height: 70px; }
-        .logo { display: flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 800; }
-        .logo .highlight { color: #ef4444; }
-        .logo i { font-size: 26px; color: #3b82f6; }
-        .badge-admin { background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; }
-        nav { display: flex; gap: 6px; align-items: center; }
-        nav a { color: #94a3b8; text-decoration: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: all 0.2s; }
-        nav a:hover { background: #1e2d4a; color: #f1f5f9; }
-        nav a.active { background: #1e3a5f; color: #60a5fa; }
-        nav a.logout { color: #ef4444; }
-        nav a.logout:hover { background: rgba(239,68,68,0.1); }
-        main { padding: 40px 0; }
-        .page-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #1a2332; margin-bottom: 30px; flex-wrap: wrap; gap: 12px; }
-        .page-header h1 { font-size: 28px; font-weight: 800; }
-        .page-header p { color: #94a3b8; font-size: 16px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 30px; }
-        .stat-card { background: #111a33; border: 1px solid #1e2d4a; border-radius: 12px; padding: 16px 20px; }
-        .stat-card .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-card .value { font-size: 24px; font-weight: 800; margin-top: 4px; }
-        .table-wrapper { background: #111a33; border: 1px solid #1e2d4a; border-radius: 16px; overflow: hidden; }
-        .table-header { padding: 16px 24px; border-bottom: 1px solid #1e2d4a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .table-header h3 { font-size: 18px; font-weight: 700; }
-        .table-header span { color: #94a3b8; font-size: 14px; }
-        .table-scroll { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 12px 16px; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #1e2d4a; background: #0e162c; }
-        td { padding: 12px 16px; border-bottom: 1px solid #0b1329; vertical-align: middle; }
-        tr:hover td { background: #16223f; }
-        .empty-state { text-align: center; padding: 40px 0; color: #475569; }
-        .empty-state i { font-size: 48px; display: block; margin-bottom: 12px; }
-        .btn-sm { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; }
-        .btn-sm i { font-size: 14px; }
-        .btn-danger { background: rgba(239,68,68,0.15); color: #f87171; }
-        .btn-danger:hover { background: #ef4444; color: #fff; }
-        .btn-primary { background: rgba(59,130,246,0.15); color: #60a5fa; }
-        .btn-primary:hover { background: #3b82f6; color: #fff; }
-        .btn-success { background: rgba(34,197,94,0.15); color: #6ee7b7; }
-        .btn-success:hover { background: #22c55e; color: #fff; }
-        .btn-warning { background: rgba(234,179,8,0.15); color: #fcd34d; }
-        .btn-warning:hover { background: #eab308; color: #fff; }
-        .actions { display: flex; gap: 4px; flex-wrap: wrap; }
-        .badge-license { font-family: monospace; background: #1e2d4a; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #60a5fa; }
-        .badge-status { padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-        .badge-status.active { background: rgba(34,197,94,0.2); color: #6ee7b7; }
-        .badge-status.inactive { background: rgba(239,68,68,0.2); color: #f87171; }
-        .badge-status.expired { background: rgba(234,179,8,0.2); color: #fcd34d; }
-        .message { padding: 14px 20px; border-radius: 12px; margin-bottom: 20px; font-weight: 500; }
-        .message.success { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
-        .message.error { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
-        footer { background: #060a14; border-top: 1px solid #111a33; padding: 24px 0; margin-top: 40px; }
-        .footer-content { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #475569; flex-wrap: wrap; gap: 8px; }
-        .footer-content a { color: #60a5fa; text-decoration: none; }
-        .footer-content a:hover { text-decoration: underline; }
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-overlay.open { display: flex; }
-        .modal { background: #111a33; border: 1px solid #1e2d4a; border-radius: 20px; padding: 32px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .modal h2 { font-size: 24px; font-weight: 700; margin-bottom: 16px; }
-        .modal .form-group { margin-bottom: 16px; }
-        .modal label { display: block; font-size: 14px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; }
-        .modal input, .modal select { width: 100%; padding: 10px 14px; background: #0b1329; border: 1px solid #1e2d4a; border-radius: 8px; color: #e2e8f0; font-size: 14px; }
-        .modal input:focus, .modal select:focus { outline: none; border-color: #3b82f6; }
-        .modal .btn { padding: 10px 24px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .modal .btn-close { background: #1e2d4a; color: #94a3b8; }
-        .modal .btn-close:hover { background: #2a3a5c; }
-        .modal .btn-primary { background: #3b82f6; color: #fff; }
-        .modal .btn-primary:hover { background: #2563eb; }
-        .modal .btn-success { background: #22c55e; color: #fff; }
-        .modal .btn-success:hover { background: #16a34a; }
-        .modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-        .modal .license-result { background: #0b1329; padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 18px; color: #6ee7b7; text-align: center; margin: 12px 0; word-break: break-all; }
-        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #3b82f6; color: #fff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 20px rgba(59,130,246,0.4); transition: all 0.3s; z-index: 100; }
-        .fab:hover { transform: scale(1.1); background: #2563eb; }
-        #toast { position:fixed; bottom:100px; right:30px; background:#111a33; border:1px solid #1e2d4a; border-radius:12px; padding:16px 24px; color:#e2e8f0; display:none; z-index:2000; max-width:400px; box-shadow:0 8px 30px rgba(0,0,0,0.6); }
-        @media (max-width: 768px) { .page-header { flex-direction: column; align-items: flex-start; } .footer-content { flex-direction: column; align-items: center; text-align: center; } .tabs { flex-wrap: wrap; } .header-inner { flex-wrap: wrap; height: auto; padding: 10px 0; gap: 10px; } nav { flex-wrap: wrap; justify-content: center; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #070b16;
+            --panel: rgba(17, 26, 51, 0.88);
+            --panel-solid: #111a33;
+            --panel-dark: #0b1329;
+            --border: #1e2d4a;
+            --border-soft: rgba(96, 165, 250, 0.16);
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --muted-dark: #64748b;
+            --blue: #3b82f6;
+            --blue-light: #60a5fa;
+            --red: #ef4444;
+            --red-light: #f87171;
+            --green: #22c55e;
+            --green-light: #6ee7b7;
+            --yellow: #eab308;
+            --yellow-light: #fcd34d;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(239, 68, 68, 0.12), transparent 30%),
+                var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        header {
+            background: rgba(7, 11, 22, 0.82);
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(18px);
+        }
+
+        .header-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 74px;
+            gap: 18px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .logo i {
+            color: var(--blue);
+            font-size: 26px;
+        }
+
+        .highlight {
+            color: var(--red);
+        }
+
+        .badge-admin {
+            background: linear-gradient(135deg, var(--red), #b91c1c);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-left: 6px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        nav a,
+        .nav-button {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 9px 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        nav a:hover,
+        .nav-button:hover {
+            background: rgba(30, 45, 74, 0.78);
+            color: #f8fafc;
+        }
+
+        nav a.active {
+            background: rgba(59, 130, 246, 0.16);
+            color: var(--blue-light);
+            border: 1px solid rgba(96, 165, 250, 0.2);
+        }
+
+        .nav-button.logout {
+            color: var(--red-light);
+        }
+
+        .nav-button.logout:hover {
+            background: rgba(239, 68, 68, 0.12);
+            color: #fecaca;
+        }
+
+        main {
+            padding: 38px 0 20px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 24px;
+            margin-bottom: 26px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .page-header h1 {
+            font-size: clamp(26px, 4vw, 38px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 6px;
+        }
+
+        .page-header p {
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--blue), #2563eb);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-main:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 26px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid var(--border-soft);
+            border-radius: 18px;
+            padding: 18px 20px;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 800;
+            margin-top: 6px;
+            letter-spacing: -0.03em;
+        }
+
+        .stat-card .value.small {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--blue-light);
+            letter-spacing: 0;
+        }
+
+        .message {
+            padding: 14px 18px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: rgba(6, 78, 59, 0.7);
+            color: var(--green-light);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+
+        .message.error {
+            background: rgba(127, 29, 29, 0.72);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.28);
+        }
+
+        .table-wrapper {
+            background: var(--panel);
+            border: 1px solid var(--border-soft);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+        }
+
+        .table-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .table-header h3 {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .table-header span {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 840px;
+        }
+
+        th {
+            text-align: left;
+            padding: 13px 16px;
+            color: var(--muted);
+            font-weight: 700;
+            border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+            background: rgba(11, 19, 41, 0.72);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(11, 19, 41, 0.86);
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(30, 45, 74, 0.42);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 52px 20px;
+            color: var(--muted-dark);
+        }
+
+        .empty-state i {
+            font-size: 44px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn-sm {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 7px 11px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-sm:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.14);
+            color: var(--red-light);
+        }
+
+        .btn-danger:hover {
+            background: var(--red);
+            color: #ffffff;
+        }
+
+        .btn-primary {
+            background: rgba(59, 130, 246, 0.14);
+            color: var(--blue-light);
+        }
+
+        .btn-primary:hover {
+            background: var(--blue);
+            color: #ffffff;
+        }
+
+        .btn-success {
+            background: rgba(34, 197, 94, 0.14);
+            color: var(--green-light);
+        }
+
+        .btn-success:hover {
+            background: var(--green);
+            color: #ffffff;
+        }
+
+        .btn-warning {
+            background: rgba(234, 179, 8, 0.14);
+            color: var(--yellow-light);
+        }
+
+        .btn-warning:hover {
+            background: var(--yellow);
+            color: #111827;
+        }
+
+        .badge-license {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: rgba(30, 45, 74, 0.8);
+            padding: 4px 8px;
+            border-radius: 7px;
+            font-size: 12px;
+            color: var(--blue-light);
+            white-space: nowrap;
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+
+        .badge-status.active {
+            background: rgba(34, 197, 94, 0.18);
+            color: var(--green-light);
+        }
+
+        .badge-status.inactive {
+            background: rgba(239, 68, 68, 0.18);
+            color: var(--red-light);
+        }
+
+        .badge-status.expired {
+            background: rgba(234, 179, 8, 0.18);
+            color: var(--yellow-light);
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            color: var(--muted);
+            word-break: break-all;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: #111a33;
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            border-radius: 22px;
+            padding: 30px;
+            max-width: 540px;
+            width: 100%;
+            max-height: 84vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
+        }
+
+        .modal h2 {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .modal label {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: #cbd5e1;
+            margin-bottom: 7px;
+        }
+
+        .modal input,
+        .modal select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--panel-dark);
+            border: 1px solid #223150;
+            border-radius: 11px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .modal input:focus,
+        .modal select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 22px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 11px 18px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-close {
+            background: #1e2d4a;
+            color: #cbd5e1;
+        }
+
+        .btn-close:hover {
+            background: #2a3a5c;
+        }
+
+        .btn-modal-primary {
+            background: var(--blue);
+            color: #ffffff;
+        }
+
+        .btn-modal-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-modal-success {
+            background: var(--green);
+            color: #ffffff;
+        }
+
+        .btn-modal-success:hover {
+            background: #16a34a;
+        }
+
+        .license-result {
+            background: #0b1329;
+            padding: 14px 16px;
+            border-radius: 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 18px;
+            color: var(--green-light);
+            text-align: center;
+            margin: 16px 0 12px;
+            word-break: break-all;
+            border: 1px solid rgba(34, 197, 94, 0.22);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: #111a33;
+            border: 1px solid #1e2d4a;
+            border-radius: 14px;
+            padding: 15px 18px;
+            color: var(--text);
+            display: none;
+            z-index: 2000;
+            max-width: 420px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        footer {
+            padding: 28px 0 36px;
+            color: var(--muted-dark);
+            font-size: 13px;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-top: 1px solid rgba(96, 165, 250, 0.1);
+            padding-top: 22px;
+        }
+
+        .footer-content a {
+            color: var(--blue-light);
+            text-decoration: none;
+        }
+
+        .footer-content a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 980px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, minmax(160px, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .container {
+                padding: 0 16px;
+            }
+
+            .header-inner {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 14px 0;
+            }
+
+            nav {
+                justify-content: flex-start;
+            }
+
+            main {
+                padding-top: 26px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal {
+                padding: 24px;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
@@ -316,10 +1132,23 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
             <span>Dart<span class="highlight">System</span></span>
             <span class="badge-admin">Admin</span>
         </div>
+
         <nav>
-            <a href="?tab=users" class="<?php echo ($_GET['tab'] ?? 'users') === 'users' ? 'active' : ''; ?>">👥 Spieler</a>
-            <a href="?tab=licenses" class="<?php echo ($_GET['tab'] ?? 'users') === 'licenses' ? 'active' : ''; ?>">🔑 Lizenzen</a>
-            <a href="?logout=1" class="logout">🚪 Logout</a>
+            <a href="?tab=users" class="<?php echo $currentTab === 'users' ? 'active' : ''; ?>">
+                <i class="fas fa-users"></i> Spieler
+            </a>
+
+            <a href="?tab=licenses" class="<?php echo $currentTab === 'licenses' ? 'active' : ''; ?>">
+                <i class="fas fa-key"></i> Lizenzen
+            </a>
+
+            <form method="post" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                <input type="hidden" name="logout_action" value="1">
+                <button type="submit" class="nav-button logout">
+                    <i class="fas fa-right-from-bracket"></i> Logout
+                </button>
+            </form>
         </nav>
     </div>
 </header>
@@ -328,51 +1157,101 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
     <div class="container">
         <div class="page-header">
             <div>
-                <h1>🛠️ Admin Dashboard</h1>
-                <p>Verwalte Spieler und Lizenzen</p>
+                <h1>Admin Dashboard</h1>
+                <p>Spieler, Lizenzen und Aktivierungen verwalten.</p>
+            </div>
+
+            <div class="quick-actions">
+                <button class="btn-main" id="openLicenseModal">
+                    <i class="fas fa-plus"></i> Neue Lizenz
+                </button>
             </div>
         </div>
 
         <?php if ($message): ?>
-            <div class="message <?php echo $messageType; ?>"><?php echo $message; ?></div>
+            <div class="message <?php echo e($messageType); ?>">
+                <?php echo e($message); ?>
+            </div>
         <?php endif; ?>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="label">Registrierte Spieler</div><div class="value"><?php echo $totalUsers; ?></div></div>
-            <div class="stat-card"><div class="label">Lizenzen gesamt</div><div class="value"><?php echo $totalLicenses; ?></div></div>
-            <div class="stat-card"><div class="label">Aktive Lizenzen</div><div class="value"><?php echo $activeLicenses; ?></div></div>
-            <div class="stat-card"><div class="label">Datenbank</div><div class="value" style="font-size:16px; font-weight:600; color:#60a5fa;">✅ Verbunden</div></div>
+            <div class="stat-card">
+                <div class="label">Registrierte Spieler</div>
+                <div class="value"><?php echo e($totalUsers); ?></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="label">Lizenzen gesamt</div>
+                <div class="value"><?php echo e($totalLicenses); ?></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="label">Aktive Lizenzen</div>
+                <div class="value"><?php echo e($activeLicenses); ?></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="label">Abgelaufen</div>
+                <div class="value"><?php echo e($expiredLicenses); ?></div>
+            </div>
         </div>
 
-        <?php $currentTab = $_GET['tab'] ?? 'users'; ?>
-
-        <!-- ─── SPIELER-TAB ─── -->
-        <div id="tab-users" style="display: <?php echo $currentTab === 'users' ? 'block' : 'none'; ?>;">
-            <div class="table-wrapper">
+        <?php if ($currentTab === 'users'): ?>
+            <section class="table-wrapper">
                 <div class="table-header">
-                    <h3>👥 Spielerliste</h3>
-                    <span><?php echo count($users); ?> Einträge</span>
+                    <h3><i class="fas fa-users"></i> Spielerliste</h3>
+                    <span><?php echo e(count($users)); ?> Einträge</span>
                 </div>
+
                 <div class="table-scroll">
                     <?php if (empty($users)): ?>
-                        <div class="empty-state"><i class="fas fa-users"></i><p>Noch keine registrierten Spieler</p></div>
+                        <div class="empty-state">
+                            <i class="fas fa-users"></i>
+                            <p>Noch keine registrierten Spieler.</p>
+                        </div>
                     <?php else: ?>
                         <table>
                             <thead>
-                                <tr><th>ID</th><th>Benutzername</th><th>Level</th><th>Experience</th><th>Registriert</th><th>Aktionen</th></tr>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Benutzername</th>
+                                    <th>Level</th>
+                                    <th>Experience</th>
+                                    <th>Registriert</th>
+                                    <th>Aktionen</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($users as $user): ?>
                                     <tr>
-                                        <td>#<?php echo $user['id']; ?></td>
-                                        <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-                                        <td><?php echo $user['level']; ?></td>
-                                        <td><?php echo $user['experience']; ?></td>
-                                        <td><?php echo date('d.m.Y H:i', strtotime($user['created_at'])); ?></td>
+                                        <td>#<?php echo e($user['id']); ?></td>
+                                        <td><strong><?php echo e($user['username']); ?></strong></td>
+                                        <td><?php echo e($user['level']); ?></td>
+                                        <td><?php echo e($user['experience']); ?></td>
+                                        <td>
+                                            <?php
+                                                $createdAt = !empty($user['created_at'])
+                                                    ? date('d.m.Y H:i', strtotime((string)$user['created_at']))
+                                                    : '—';
+                                                echo e($createdAt);
+                                            ?>
+                                        </td>
                                         <td>
                                             <div class="actions">
-                                                <a href="?tab=users&profile=<?php echo urlencode($user['username']); ?>" class="btn-sm btn-primary"><i class="fas fa-user"></i> Profil</a>
-                                                <a href="?tab=users&delete_user=<?php echo urlencode($user['username']); ?>" class="btn-sm btn-danger" onclick="return confirm('Spieler \'<?php echo htmlspecialchars($user['username']); ?>\' wirklich löschen?')"><i class="fas fa-trash"></i> Löschen</a>
+                                                <a
+                                                    href="?tab=users&profile=<?php echo urlencode((string)$user['username']); ?>"
+                                                    class="btn-sm btn-primary js-profile-link"
+                                                >
+                                                    <i class="fas fa-user"></i> Profil
+                                                </a>
+
+                                                <form method="post" onsubmit="return confirm('Spieler wirklich löschen?')" style="display:inline;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                                                    <input type="hidden" name="delete_user" value="<?php echo e($user['username']); ?>">
+                                                    <button type="submit" class="btn-sm btn-danger">
+                                                        <i class="fas fa-trash"></i> Löschen
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
@@ -381,19 +1260,22 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
                         </table>
                     <?php endif; ?>
                 </div>
-            </div>
-        </div>
+            </section>
+        <?php endif; ?>
 
-        <!-- ─── LIZENZ-TAB ─── -->
-        <div id="tab-licenses" style="display: <?php echo $currentTab === 'licenses' ? 'block' : 'none'; ?>;">
-            <div class="table-wrapper">
+        <?php if ($currentTab === 'licenses'): ?>
+            <section class="table-wrapper">
                 <div class="table-header">
-                    <h3>🔑 Lizenzverwaltung</h3>
-                    <span><?php echo count($licenses); ?> Lizenzen</span>
+                    <h3><i class="fas fa-key"></i> Lizenzverwaltung</h3>
+                    <span><?php echo e(count($licenses)); ?> Lizenzen</span>
                 </div>
+
                 <div class="table-scroll">
                     <?php if (empty($licenses)): ?>
-                        <div class="empty-state"><i class="fas fa-key"></i><p>Noch keine Lizenzen erstellt</p></div>
+                        <div class="empty-state">
+                            <i class="fas fa-key"></i>
+                            <p>Noch keine Lizenzen erstellt.</p>
+                        </div>
                     <?php else: ?>
                         <table>
                             <thead>
@@ -412,28 +1294,95 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
                             <tbody>
                                 <?php foreach ($licenses as $license): ?>
                                     <?php
-                                    $status = 'active';
-                                    if (!$license['is_active']) $status = 'inactive';
-                                    elseif ($license['expires_at'] && strtotime($license['expires_at']) < time()) $status = 'expired';
-                                    $deviceId = $license['device_fingerprint'] ?? $license['device_id'] ?? '—';
+                                        $isActive = !empty($license['is_active']);
+                                        $isExpired = !empty($license['expires_at']) && strtotime((string)$license['expires_at']) < time();
+
+                                        $status = 'active';
+
+                                        if (!$isActive) {
+                                            $status = 'inactive';
+                                        } elseif ($isExpired) {
+                                            $status = 'expired';
+                                        }
+
+                                        $statusLabel = [
+                                            'active' => 'Aktiv',
+                                            'inactive' => 'Inaktiv',
+                                            'expired' => 'Abgelaufen',
+                                        ][$status];
+
+                                        $deviceId = $license['device_fingerprint'] ?? $license['device_id'] ?? '—';
+                                        $licenseType = $license['license_type'] ?? '—';
+
+                                        $expiresAt = !empty($license['expires_at'])
+                                            ? date('d.m.Y', strtotime((string)$license['expires_at']))
+                                            : '∞';
+
+                                        $activations = $license['activations'] ?? 0;
+                                        $maxActivations = $license['max_activations'] ?? 1;
                                     ?>
                                     <tr>
-                                        <td>#<?php echo $license['id']; ?></td>
-                                        <td><span class="badge-license"><?php echo htmlspecialchars($license['license_key']); ?></span></td>
-                                        <td><?php echo htmlspecialchars($license['customer_name'] ?? '—'); ?><br><small><?php echo htmlspecialchars($license['customer_email'] ?? ''); ?></small></td>
-                                        <td style="font-family:monospace; font-size:12px; color:#94a3b8;"><?php echo htmlspecialchars($deviceId); ?></td>
-                                        <td><span class="badge-status active"><?php echo $license['license_type']; ?></span></td>
-                                        <td><span class="badge-status <?php echo $status; ?>"><?php echo $status; ?></span></td>
-                                        <td><?php echo $license['expires_at'] ? date('d.m.Y', strtotime($license['expires_at'])) : '∞'; ?></td>
-                                        <td><?php echo $license['activations']; ?>/<?php echo $license['max_activations']; ?></td>
+                                        <td>#<?php echo e($license['id'] ?? ''); ?></td>
+
+                                        <td>
+                                            <span class="badge-license">
+                                                <?php echo e($license['license_key'] ?? '—'); ?>
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <strong><?php echo e($license['customer_name'] ?? '—'); ?></strong>
+                                            <?php if (!empty($license['customer_email'])): ?>
+                                                <br>
+                                                <small class="muted"><?php echo e($license['customer_email']); ?></small>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <td class="mono"><?php echo e($deviceId); ?></td>
+
+                                        <td>
+                                            <span class="badge-status active">
+                                                <?php echo e($licenseType); ?>
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <span class="badge-status <?php echo e($status); ?>">
+                                                <?php echo e($statusLabel); ?>
+                                            </span>
+                                        </td>
+
+                                        <td><?php echo e($expiresAt); ?></td>
+
+                                        <td><?php echo e($activations); ?>/<?php echo e($maxActivations); ?></td>
+
                                         <td>
                                             <div class="actions">
-                                                <?php if ($license['is_active']): ?>
-                                                    <a href="?tab=licenses&deactivate_license=<?php echo $license['id']; ?>" class="btn-sm btn-warning" onclick="return confirm('Lizenz #<?php echo $license['id']; ?> wirklich deaktivieren?')"><i class="fas fa-pause"></i> Deaktivieren</a>
+                                                <?php if ($isActive): ?>
+                                                    <form method="post" onsubmit="return confirm('Lizenz wirklich deaktivieren?')" style="display:inline;">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                                                        <input type="hidden" name="deactivate_license" value="<?php echo e($license['id'] ?? 0); ?>">
+                                                        <button type="submit" class="btn-sm btn-warning">
+                                                            <i class="fas fa-pause"></i> Deaktivieren
+                                                        </button>
+                                                    </form>
                                                 <?php else: ?>
-                                                    <a href="?tab=licenses&activate_license=<?php echo $license['id']; ?>" class="btn-sm btn-success" onclick="return confirm('Lizenz #<?php echo $license['id']; ?> wirklich aktivieren?')"><i class="fas fa-play"></i> Aktivieren</a>
+                                                    <form method="post" onsubmit="return confirm('Lizenz wirklich aktivieren?')" style="display:inline;">
+                                                        <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                                                        <input type="hidden" name="activate_license" value="<?php echo e($license['id'] ?? 0); ?>">
+                                                        <button type="submit" class="btn-sm btn-success">
+                                                            <i class="fas fa-play"></i> Aktivieren
+                                                        </button>
+                                                    </form>
                                                 <?php endif; ?>
-                                                <a href="?tab=licenses&delete_license=<?php echo $license['id']; ?>" class="btn-sm btn-danger" onclick="return confirm('Lizenz #<?php echo $license['id']; ?> wirklich löschen?')"><i class="fas fa-trash"></i> Löschen</a>
+
+                                                <form method="post" onsubmit="return confirm('Lizenz wirklich löschen?')" style="display:inline;">
+                                                    <input type="hidden" name="csrf_token" value="<?php echo e(csrf_token()); ?>">
+                                                    <input type="hidden" name="delete_license" value="<?php echo e($license['id'] ?? 0); ?>">
+                                                    <button type="submit" class="btn-sm btn-danger">
+                                                        <i class="fas fa-trash"></i> Löschen
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
@@ -442,45 +1391,52 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
                         </table>
                     <?php endif; ?>
                 </div>
-            </div>
-        </div>
+            </section>
+        <?php endif; ?>
     </div>
 </main>
 
-<!-- ─── FAB: NEUE LIZENZ ─── -->
-<button class="fab" id="fabLicense" title="Neue Lizenz generieren"><i class="fas fa-plus"></i></button>
-
-<!-- ─── MODAL: LIZENZ GENERIEREN ─── -->
+<!-- ─────────────────────────────────────────────
+     MODAL: LIZENZ GENERIEREN
+───────────────────────────────────────────── -->
 <div class="modal-overlay" id="licenseModal">
     <div class="modal">
-        <h2>🔑 Lizenz generieren</h2>
+        <h2><i class="fas fa-key"></i> Lizenz generieren</h2>
+
         <form id="licenseForm">
+            <input type="hidden" id="ajaxCsrfToken" value="<?php echo e(csrf_token()); ?>">
+
             <div class="form-group">
-                <label for="customer_name">👤 Kundenname</label>
-                <input type="text" id="customer_name" placeholder="z.B. Max Mustermann" required>
+                <label for="customer_name">Kundenname</label>
+                <input type="text" id="customer_name" placeholder="z. B. Max Mustermann" required>
             </div>
+
             <div class="form-group">
-                <label for="customer_email">📧 E-Mail (optional)</label>
+                <label for="customer_email">E-Mail optional</label>
                 <input type="email" id="customer_email" placeholder="max@beispiel.de">
             </div>
+
             <div class="form-group">
-                <label for="device_id">🖥️ Device ID (optional, für Gerätebindung)</label>
+                <label for="device_id">Device ID optional</label>
                 <input type="text" id="device_id" placeholder="Leer lassen, wenn Kunde selbst registrieren soll">
             </div>
+
             <div class="form-group">
-                <label for="license_type">📋 Lizenztyp</label>
+                <label for="license_type">Lizenztyp</label>
                 <select id="license_type">
                     <option value="full">Full</option>
                     <option value="trial">Trial</option>
                     <option value="subscription">Subscription</option>
                 </select>
             </div>
+
             <div class="form-group">
-                <label for="max_activations">🔄 Maximale Aktivierungen</label>
-                <input type="number" id="max_activations" value="1" min="1">
+                <label for="max_activations">Maximale Aktivierungen</label>
+                <input type="number" id="max_activations" value="1" min="1" max="999">
             </div>
+
             <div class="form-group">
-                <label for="expires_in">⏳ Gültigkeitsdauer</label>
+                <label for="expires_in">Gültigkeitsdauer</label>
                 <select id="expires_in">
                     <option value="30">30 Tage</option>
                     <option value="90">90 Tage</option>
@@ -489,195 +1445,308 @@ $activeLicenses = array_reduce($licenses, function($carry, $item) {
                     <option value="0">Unbegrenzt</option>
                 </select>
             </div>
-            
+
             <div id="licenseResult" style="display:none;">
                 <div class="license-result" id="generatedLicense">XXXX-XXXX-XXXX-XXXX</div>
-                <button type="button" class="btn btn-success" id="copyLicenseBtn"><i class="fas fa-copy"></i> Kopieren</button>
+                <button type="button" class="btn btn-modal-success" id="copyLicenseBtn">
+                    <i class="fas fa-copy"></i> Kopieren
+                </button>
             </div>
-            
+
             <div class="modal-actions">
                 <button type="button" class="btn btn-close" id="modalClose">Schließen</button>
-                <button type="submit" class="btn btn-primary" id="generateBtn"><i class="fas fa-key"></i> Generieren</button>
+                <button type="submit" class="btn btn-modal-primary" id="generateBtn">
+                    <i class="fas fa-key"></i> Generieren
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- ─── MODAL: PROFIL ─── -->
+<!-- ─────────────────────────────────────────────
+     MODAL: PROFIL
+───────────────────────────────────────────── -->
 <div class="modal-overlay" id="profileModal">
     <div class="modal">
-        <h2>👤 Spieler-Profil</h2>
-        <div id="profileContent"><p style="color:#94a3b8;">Lade Daten...</p></div>
+        <h2><i class="fas fa-user"></i> Spieler-Profil</h2>
+        <div id="profileContent">
+            <p class="muted">Lade Daten...</p>
+        </div>
+
         <div class="modal-actions">
             <button type="button" class="btn btn-close" id="profileClose">Schließen</button>
         </div>
     </div>
 </div>
 
-<!-- ─── TOAST ─── -->
-<div id="toast"><span id="toastMessage"></span></div>
+<div id="toast">
+    <span id="toastMessage"></span>
+</div>
 
 <footer>
     <div class="container footer-content">
-        <span>&copy; 2025 DartSystem – Admin-Dashboard</span>
+        <span>&copy; <?php echo date('Y'); ?> DartSystem – Admin-Dashboard</span>
         <span><a href="/">← Zurück zur Hauptseite</a></span>
     </div>
 </footer>
 
 <script>
-// ─── TOAST ───
-function showToast(msg, type = 'success') {
+'use strict';
+
+function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
-    const toastMsg = document.getElementById('toastMessage');
-    toastMsg.textContent = msg;
+    const toastMessage = document.getElementById('toastMessage');
+
+    toastMessage.textContent = message;
     toast.style.borderColor = type === 'success' ? '#22c55e' : '#ef4444';
     toast.style.display = 'block';
+
     clearTimeout(toast._timeout);
-    toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 4000);
+
+    toast._timeout = setTimeout(() => {
+        toast.style.display = 'none';
+    }, 4200);
 }
 
-// ─── MODAL ───
-const modal = document.getElementById('licenseModal');
-const fab = document.getElementById('fabLicense');
-const closeBtn = document.getElementById('modalClose');
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function formatDateTime(value) {
+    if (!value) return '—';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return escapeHtml(value);
+    }
+
+    return date.toLocaleString('de-DE');
+}
+
+// ─────────────────────────────────────────────
+// LIZENZ MODAL
+// ─────────────────────────────────────────────
+const licenseModal = document.getElementById('licenseModal');
+const openLicenseModal = document.getElementById('openLicenseModal');
+const modalClose = document.getElementById('modalClose');
 const licenseResult = document.getElementById('licenseResult');
 const generatedLicense = document.getElementById('generatedLicense');
-const copyBtn = document.getElementById('copyLicenseBtn');
+const copyLicenseBtn = document.getElementById('copyLicenseBtn');
 
-fab.addEventListener('click', () => {
-    modal.classList.add('open');
+openLicenseModal?.addEventListener('click', () => {
+    licenseModal.classList.add('open');
     licenseResult.style.display = 'none';
-    document.getElementById('customer_name').focus();
+
+    const customerNameInput = document.getElementById('customer_name');
+    customerNameInput.value = '';
+    document.getElementById('customer_email').value = '';
+    document.getElementById('device_id').value = '';
+    document.getElementById('license_type').value = 'full';
+    document.getElementById('max_activations').value = '1';
+    document.getElementById('expires_in').value = '365';
+
+    setTimeout(() => customerNameInput.focus(), 50);
 });
 
-closeBtn.addEventListener('click', () => modal.classList.remove('open'));
-modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+modalClose?.addEventListener('click', () => {
+    licenseModal.classList.remove('open');
+});
 
-// ─── LIZENZ GENERIEREN ───
-document.getElementById('licenseForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
+licenseModal?.addEventListener('click', (event) => {
+    if (event.target === licenseModal) {
+        licenseModal.classList.remove('open');
+    }
+});
+
+// ─────────────────────────────────────────────
+// LIZENZ GENERIEREN
+// Voraussetzung: /api/generate_license.php existiert.
+// Muss JSON zurückgeben: { success: true, license_key: "..." }
+// ─────────────────────────────────────────────
+document.getElementById('licenseForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
     const customerName = document.getElementById('customer_name').value.trim();
     const customerEmail = document.getElementById('customer_email').value.trim();
     const deviceId = document.getElementById('device_id').value.trim();
     const licenseType = document.getElementById('license_type').value;
-    const maxActivations = document.getElementById('max_activations').value;
-    const expiresIn = parseInt(document.getElementById('expires_in').value);
-    
+    const maxActivations = Number.parseInt(document.getElementById('max_activations').value, 10);
+    const expiresIn = Number.parseInt(document.getElementById('expires_in').value, 10);
+    const csrfToken = document.getElementById('ajaxCsrfToken').value;
+
     if (!customerName) {
-        showToast('❌ Bitte Kundenname eingeben!', 'error');
+        showToast('❌ Bitte Kundenname eingeben.', 'error');
         return;
     }
-    
+
+    if (!Number.isInteger(maxActivations) || maxActivations < 1) {
+        showToast('❌ Maximale Aktivierungen muss mindestens 1 sein.', 'error');
+        return;
+    }
+
     const generateBtn = document.getElementById('generateBtn');
+    const originalText = generateBtn.innerHTML;
+
     generateBtn.disabled = true;
-    generateBtn.textContent = '⏳ Wird generiert...';
-    
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Wird generiert...';
+
     try {
         const response = await fetch('/api/generate_license.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
             body: JSON.stringify({
                 customer_name: customerName,
                 customer_email: customerEmail,
                 device_id: deviceId || null,
                 license_type: licenseType,
-                max_activations: parseInt(maxActivations),
+                max_activations: maxActivations,
                 expires_in: expiresIn
             })
         });
-        
+
         const data = await response.json();
-        
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Serverfehler beim Generieren.');
+        }
+
         if (data.success) {
-            generatedLicense.textContent = data.license_key;
+            generatedLicense.textContent = data.license_key || '';
             licenseResult.style.display = 'block';
-            showToast('✅ Lizenz erfolgreich generiert!');
-            setTimeout(() => location.reload(), 1500);
+            showToast('✅ Lizenz erfolgreich generiert.');
+
+            setTimeout(() => {
+                window.location.href = 'index.php?tab=licenses';
+            }, 1300);
         } else {
-            showToast('❌ ' + (data.error || 'Fehler beim Generieren'), 'error');
+            showToast('❌ ' + (data.error || 'Fehler beim Generieren.'), 'error');
         }
     } catch (error) {
         showToast('❌ Fehler: ' + error.message, 'error');
     } finally {
         generateBtn.disabled = false;
-        generateBtn.textContent = '🔑 Generieren';
+        generateBtn.innerHTML = originalText;
     }
 });
 
-// ─── KOPIEREN ───
-copyBtn.addEventListener('click', () => {
-    const text = generatedLicense.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('✅ Lizenz in die Zwischenablage kopiert!');
-    }).catch(() => {
+// ─────────────────────────────────────────────
+// LIZENZ KOPIEREN
+// ─────────────────────────────────────────────
+copyLicenseBtn?.addEventListener('click', async () => {
+    const text = generatedLicense.textContent.trim();
+
+    if (!text) {
+        showToast('❌ Keine Lizenz zum Kopieren vorhanden.', 'error');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('✅ Lizenz wurde kopiert.');
+    } catch {
         const range = document.createRange();
         range.selectNode(generatedLicense);
+
         window.getSelection().removeAllRanges();
         window.getSelection().addRange(range);
+
         document.execCommand('copy');
-        showToast('✅ Lizenz kopiert!');
-    });
+        window.getSelection().removeAllRanges();
+
+        showToast('✅ Lizenz wurde kopiert.');
+    }
 });
 
-// ─── PROFIL MODAL ───
+// ─────────────────────────────────────────────
+// PROFIL MODAL
+// Voraussetzung: /api/get_profile.php existiert.
+// Muss JSON zurückgeben: { success: true, data: {...} }
+// ─────────────────────────────────────────────
 const profileModal = document.getElementById('profileModal');
 const profileContent = document.getElementById('profileContent');
 const profileClose = document.getElementById('profileClose');
 
-document.querySelectorAll('a[href*="profile="]').forEach(link => {
-    link.addEventListener('click', async (e) => {
-        e.preventDefault();
+document.querySelectorAll('.js-profile-link').forEach((link) => {
+    link.addEventListener('click', async (event) => {
+        event.preventDefault();
+
         const url = new URL(link.href);
         const username = url.searchParams.get('profile');
-        
+
         profileModal.classList.add('open');
-        profileContent.innerHTML = '<p style="color:#94a3b8;">⏳ Lade Daten...</p>';
-        
+        profileContent.innerHTML = '<p class="muted">⏳ Lade Daten...</p>';
+
         try {
             const response = await fetch(`/api/get_profile.php?username=${encodeURIComponent(username)}`);
             const data = await response.json();
-            
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Serverfehler beim Laden.');
+            }
+
             if (data.success) {
-                const u = data.data;
+                const u = data.data || {};
+                const progress = Array.isArray(u.progress) ? u.progress : [];
+
                 profileContent.innerHTML = `
-                    <div style="background:#0b1329; padding:16px; border-radius:12px; margin-bottom:16px;">
-                        <p><strong>👤 Benutzername:</strong> ${u.username}</p>
-                        <p><strong>🆔 ID:</strong> #${u.id}</p>
-                        <p><strong>📊 Level:</strong> ${u.level}</p>
-                        <p><strong>⭐ Experience:</strong> ${u.experience}</p>
-                        <p><strong>📅 Registriert:</strong> ${new Date(u.created_at).toLocaleString('de-DE')}</p>
-                        ${u.last_login ? `<p><strong>🕐 Letzter Login:</strong> ${new Date(u.last_login).toLocaleString('de-DE')}</p>` : ''}
+                    <div style="background:#0b1329; padding:16px; border-radius:14px; margin-bottom:16px; border:1px solid rgba(96,165,250,.12);">
+                        <p><strong>Benutzername:</strong> ${escapeHtml(u.username)}</p>
+                        <p><strong>ID:</strong> #${escapeHtml(u.id)}</p>
+                        <p><strong>Level:</strong> ${escapeHtml(u.level)}</p>
+                        <p><strong>Experience:</strong> ${escapeHtml(u.experience)}</p>
+                        <p><strong>Registriert:</strong> ${formatDateTime(u.created_at)}</p>
+                        ${u.last_login ? `<p><strong>Letzter Login:</strong> ${formatDateTime(u.last_login)}</p>` : ''}
                     </div>
-                    <div style="background:#0b1329; padding:16px; border-radius:12px;">
-                        <h4>📈 Fortschritt</h4>
-                        ${u.progress && u.progress.length > 0 ? 
-                            u.progress.map(p => `
-                                <div style="border-bottom:1px solid #1a2332; padding:6px 0; font-size:14px;">
-                                    <strong>${p.level_id}</strong> - ${p.accuracy || 0}% (${p.darts_thrown || 0} Darts)
-                                </div>
-                            `).join('') :
-                            '<p style="color:#475569;">Kein Fortschritt vorhanden</p>'
+
+                    <div style="background:#0b1329; padding:16px; border-radius:14px; border:1px solid rgba(96,165,250,.12);">
+                        <h4 style="margin-bottom:10px;">Fortschritt</h4>
+                        ${
+                            progress.length > 0
+                                ? progress.map((p) => `
+                                    <div style="border-bottom:1px solid #1a2332; padding:8px 0; font-size:14px;">
+                                        <strong>${escapeHtml(p.level_id)}</strong>
+                                        <span class="muted">– ${escapeHtml(p.accuracy || 0)}% Genauigkeit, ${escapeHtml(p.darts_thrown || 0)} Darts</span>
+                                    </div>
+                                `).join('')
+                                : '<p class="muted">Kein Fortschritt vorhanden.</p>'
                         }
                     </div>
                 `;
             } else {
-                profileContent.innerHTML = `<p style="color:#f87171;">❌ ${data.error || 'Benutzer nicht gefunden'}</p>`;
+                profileContent.innerHTML = `<p style="color:#f87171;">❌ ${escapeHtml(data.error || 'Benutzer nicht gefunden.')}</p>`;
             }
         } catch (error) {
-            profileContent.innerHTML = `<p style="color:#f87171;">❌ Fehler beim Laden: ${error.message}</p>`;
+            profileContent.innerHTML = `<p style="color:#f87171;">❌ Fehler beim Laden: ${escapeHtml(error.message)}</p>`;
         }
     });
 });
 
-profileClose.addEventListener('click', () => profileModal.classList.remove('open'));
-profileModal.addEventListener('click', (e) => { if (e.target === profileModal) profileModal.classList.remove('open'); });
+profileClose?.addEventListener('click', () => {
+    profileModal.classList.remove('open');
+});
 
-// ─── KEYBOARD SHORTCUTS ───
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        modal.classList.remove('open');
+profileModal?.addEventListener('click', (event) => {
+    if (event.target === profileModal) {
         profileModal.classList.remove('open');
+    }
+});
+
+// ─────────────────────────────────────────────
+// ESC SCHLIESST MODALS
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        licenseModal?.classList.remove('open');
+        profileModal?.classList.remove('open');
     }
 });
 </script>
