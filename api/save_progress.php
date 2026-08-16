@@ -1,51 +1,19 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-require_once __DIR__ . '/../db.php';
-
-$username = $_POST['username'] ?? '';
-$levelId = $_POST['levelId'] ?? '';
-$dartsThrown = (int)($_POST['dartsThrown'] ?? 0);
-$successfulHits = (int)($_POST['successfulHits'] ?? 0);
-
-if (empty($username) || empty($levelId)) {
-    echo json_encode(['success' => false, 'error' => 'Username und Level-ID erforderlich']);
-    exit;
-}
-
+declare(strict_types=1);
+require __DIR__ . '/_bootstrap.php';
+api_require_method('POST');
+$input = api_input(false);
+$username = api_username($input);
+$levelId = trim((string)($input['levelId'] ?? $input['level_id'] ?? ''));
+$darts = filter_var($input['dartsThrown'] ?? $input['darts_thrown'] ?? null, FILTER_VALIDATE_INT);
+$hits = filter_var($input['successfulHits'] ?? $input['successful_hits'] ?? null, FILTER_VALIDATE_INT);
+if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $levelId) || $darts === false || $hits === false || $darts < 0 || $hits < 0 || $hits > $darts) api_error('Ungültige Fortschrittsdaten.');
 $pdo = getDBConnection();
-
-// ─── User-ID holen ───
-$stmt = $pdo->prepare("SELECT id FROM users WHERE username = :username");
+$stmt = $pdo->prepare('SELECT id FROM users WHERE username = :username');
 $stmt->execute(['username' => $username]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$user) {
-    echo json_encode(['success' => false, 'error' => 'Benutzer nicht gefunden']);
-    exit;
-}
-
-$userId = $user['id'];
-$accuracy = ($dartsThrown > 0) ? ($successfulHits / $dartsThrown) * 100 : 0;
-
-$stmt = $pdo->prepare("
-    INSERT INTO progress (user_id, level_id, darts_thrown, successful_hits, accuracy, attempts, last_updated)
-    VALUES (:user_id, :level_id, :darts_thrown, :successful_hits, :accuracy, 1, NOW())
-    ON DUPLICATE KEY UPDATE
-        darts_thrown = darts_thrown + :darts_thrown,
-        successful_hits = successful_hits + :successful_hits,
-        accuracy = ((successful_hits + :successful_hits) / (darts_thrown + :darts_thrown)) * 100,
-        attempts = attempts + 1,
-        last_updated = NOW()
-");
-
-$stmt->execute([
-    'user_id' => $userId,
-    'level_id' => $levelId,
-    'darts_thrown' => $dartsThrown,
-    'successful_hits' => $successfulHits,
-    'accuracy' => $accuracy
-]);
-
-echo json_encode(['success' => true, 'message' => 'Fortschritt gespeichert']);
-?>
+$userId = $stmt->fetchColumn();
+if (!$userId) api_error('Benutzer nicht gefunden.', 404);
+$accuracy = $darts > 0 ? ($hits / $darts) * 100 : 0;
+$stmt = $pdo->prepare('INSERT INTO progress (user_id, level_id, darts_thrown, successful_hits, accuracy, attempts, last_updated) VALUES (:user_id, :level_id, :darts, :hits, :accuracy, 1, NOW()) ON DUPLICATE KEY UPDATE successful_hits = successful_hits + VALUES(successful_hits), darts_thrown = darts_thrown + VALUES(darts_thrown), accuracy = (successful_hits / NULLIF(darts_thrown, 0)) * 100, attempts = attempts + 1, last_updated = NOW()');
+$stmt->execute(['user_id' => $userId, 'level_id' => $levelId, 'darts' => $darts, 'hits' => $hits, 'accuracy' => $accuracy]);
+api_response(['success' => true, 'message' => 'Fortschritt gespeichert.']);

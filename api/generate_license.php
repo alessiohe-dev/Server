@@ -1,72 +1,26 @@
 <?php
-header('Content-Type: application/json');
-require_once __DIR__ . '/../db.php'; // oder finde db.php dynamisch
-
-$data = json_decode(file_get_contents('php://input'), true);
-
-if (!$data) {
-    echo json_encode(['success' => false, 'error' => 'Ungültige JSON-Daten']);
-    exit;
-}
-
-$customerName   = trim($data['customer_name'] ?? '');
-$customerEmail  = trim($data['customer_email'] ?? '');
-$deviceId       = trim($data['device_id'] ?? '');
-$licenseType    = $data['license_type'] ?? 'full';
-$maxActivations = (int)($data['max_activations'] ?? 1);
-$expiresIn      = (int)($data['expires_in'] ?? 365);
-
-if (empty($customerName)) {
-    echo json_encode(['success' => false, 'error' => 'Kundenname ist erforderlich']);
-    exit;
-}
-
-$licenseKey = sprintf('%04X-%04X-%04X-%04X', random_int(0,65535), random_int(0,65535), random_int(0,65535), random_int(0,65535));
-$keyHash = hash('sha256', $licenseKey);
-$expiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', strtotime("+{$expiresIn} days")) : null;
-
-try {
-    $pdo = getDBConnection();
-    $stmt = $pdo->prepare("
-        INSERT INTO licenses (
-            license_key,
-            key_hash,
-            customer_name,
-            customer_email,
-            device_id,           -- ← Spalte muss in der Tabelle existieren!
-            license_type,
-            max_activations,
-            expires_at,
-            is_active
-        ) VALUES (
-            :license_key,
-            :key_hash,
-            :customer_name,
-            :customer_email,
-            :device_id,
-            :license_type,
-            :max_activations,
-            :expires_at,
-            1
-        )
-    ");
-    $stmt->execute([
-        ':license_key'    => $licenseKey,
-        ':key_hash'       => $keyHash,
-        ':customer_name'  => $customerName,
-        ':customer_email' => $customerEmail,
-        ':device_id'      => $deviceId ?: null,
-        ':license_type'   => $licenseType,
-        ':max_activations'=> $maxActivations,
-        ':expires_at'     => $expiresAt
-    ]);
-
-    echo json_encode([
-        'success'     => true,
-        'license_key' => $licenseKey,
-        'id'          => $pdo->lastInsertId(),
-        'expires_at'  => $expiresAt
-    ]);
-} catch (PDOException $e) {
-    echo json_encode(['success' => false, 'error' => 'Datenbankfehler: ' . $e->getMessage()]);
-}
+declare(strict_types=1);
+require __DIR__ . '/_bootstrap.php';
+api_require_method('POST');
+if (!is_admin()) api_error('Administrator-Anmeldung erforderlich.', 401);
+$input = api_input(false);
+$csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? null);
+if (!csrf_is_valid(is_string($csrf) ? $csrf : null)) api_error('Ungültiges CSRF-Token.', 403);
+$customerName = trim((string)($input['customer_name'] ?? ''));
+$customerEmail = trim((string)($input['customer_email'] ?? ''));
+$deviceId = trim((string)($input['device_id'] ?? ''));
+$licenseType = strtolower(trim((string)($input['license_type'] ?? 'full')));
+$maxActivations = filter_var($input['max_activations'] ?? 1, FILTER_VALIDATE_INT);
+$expiresIn = filter_var($input['expires_in'] ?? 365, FILTER_VALIDATE_INT);
+if ($customerName === '') api_error('Kundenname ist erforderlich.');
+if ($customerEmail !== '' && !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) api_error('Ungültige E-Mail-Adresse.');
+if (!in_array($licenseType, ['full','trial','subscription','club'], true)) api_error('Ungültiger Lizenztyp.');
+if ($maxActivations === false || $maxActivations < 1 || $maxActivations > 999) api_error('Maximale Aktivierungen müssen zwischen 1 und 999 liegen.');
+if ($expiresIn === false || $expiresIn < 0 || $expiresIn > 3650) api_error('Ungültige Gültigkeitsdauer.');
+$part = static fn(): string => strtoupper(bin2hex(random_bytes(2)));
+$licenseKey = implode('-', [$part(), $part(), $part(), $part()]);
+$expiresAt = $expiresIn > 0 ? date('Y-m-d H:i:s', strtotime('+' . $expiresIn . ' days')) : null;
+$pdo = getDBConnection();
+$stmt = $pdo->prepare('INSERT INTO licenses (license_key, key_hash, customer_name, customer_email, device_id, license_type, max_activations, expires_at, is_active) VALUES (:key, :hash, :name, :email, :device, :type, :max, :expires, 1)');
+$stmt->execute(['key' => $licenseKey, 'hash' => hash('sha256', $licenseKey), 'name' => $customerName, 'email' => $customerEmail ?: null, 'device' => $deviceId ?: null, 'type' => $licenseType, 'max' => $maxActivations, 'expires' => $expiresAt]);
+api_response(['success' => true, 'license_key' => $licenseKey, 'id' => $pdo->lastInsertId(), 'expires_at' => $expiresAt], 201);

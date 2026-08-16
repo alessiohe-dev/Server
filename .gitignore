@@ -104,3 +104,10 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Server secrets and local runtime files
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
