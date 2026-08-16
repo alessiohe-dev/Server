@@ -13,7 +13,7 @@ $user = current_user();
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($pageTitle) ?></title>
     <meta name="description" content="<?= e($pageDescription) ?>">
-    <meta name="theme-color" content="#071712">
+    <meta name="theme-color" content="#071426">
     <link rel="canonical" href="<?= e(app_url(ltrim(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/'))) ?>">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="de_DE">
@@ -23,9 +23,9 @@ $user = current_user();
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&amp;family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/site.css?v=3">
-    <script defer src="/assets/js/site.js?v=3"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/site.css?v=5">
+    <script defer src="/assets/js/site.js?v=5"></script>
 </head>
 <body>
 <header class="site-header">
