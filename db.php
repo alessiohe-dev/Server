@@ -15,7 +15,7 @@ function getDBConnection(): PDO
     $password = getenv('DB_PASSWORD') ?: '';
 
     if ($host === '' || $database === '' || $username === '' || $password === '') {
-        throw new RuntimeException('Die TiDB-Umgebungsvariablen DB_HOST, DB_NAME, DB_USER und DB_PASSWORD sind nicht vollständig konfiguriert.');
+        throw new RuntimeException('Die Datenbankverbindung ist noch nicht vollständig konfiguriert.');
     }
 
     $dsn = sprintf(
