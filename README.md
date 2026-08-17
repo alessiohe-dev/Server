@@ -19,7 +19,7 @@ Professionelle Website und PHP-API für das in Unity entwickelte DartSystem-Prog
 - `/preise.php` – Lizenzmodelle
 - `/hilfe.php` – FAQ und Support
 - `/login.php`, `/register.php`, `/account.php` – verbundenes Spielerkonto
-- `/admin/` – Spieler- und Lizenzverwaltung
+- `/admin/` – Spieler-, Lizenz- und Supportverwaltung
 
 Der alte Dashboard-Pfad `/website/dashboard/` leitet dauerhaft auf `/admin/` um.
 
@@ -36,7 +36,7 @@ Der alte Dashboard-Pfad `/website/dashboard/` leitet dauerhaft auf `/admin/` um.
 - `POST /api/generate_license.php` – nur für angemeldete Administratoren
 - `GET /api/health.php`
 
-Die bisherigen Unity-Feldnamen (`levelId`, `dartsThrown`, `successfulHits`, `device_id`, `license_key`) bleiben unterstützt. Neue Clients sollten JSON oder POST-Formulardaten verwenden. Passwörter sollten nicht über URL-Parameter gesendet werden, auch wenn der Login die bestehende GET-Kompatibilität vorerst beibehält.
+Die bisherigen Unity-Feldnamen (`levelId`, `dartsThrown`, `successfulHits`, `device_id`, `license_key`) bleiben unterstützt. Login und Registrierung akzeptieren ausschließlich POST-Anfragen. Fortschritt und Highscores können nur für das angemeldete Spielerkonto gespeichert werden.
 
 ## Render-Konfiguration
 

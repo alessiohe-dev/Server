@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
-api_require_method('GET', 'POST');
+api_require_method('POST');
 $input = api_input();
 $username = trim((string)($input['username'] ?? ''));
 $password = (string)($input['password'] ?? '');
 if ($username === '' || $password === '') api_error('Benutzername und Passwort erforderlich.');
+if (strlen($username) > 32 || strlen($password) > 4096) api_error('Ungültige Anmeldedaten.');
 $pdo = getDBConnection();
 $stmt = $pdo->prepare('SELECT id, username, password, level, experience, created_at FROM users WHERE username = :username LIMIT 1');
 $stmt->execute(['username' => $username]);
