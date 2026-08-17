@@ -42,11 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = getDBConnection();
         if (isset($_POST['delete_user'])) {
             $userId = (int)$_POST['delete_user'];
-            $pdo->beginTransaction();
-            $pdo->prepare('DELETE FROM highscores WHERE user_id = :id')->execute(['id' => $userId]);
-            $pdo->prepare('DELETE FROM progress WHERE user_id = :id')->execute(['id' => $userId]);
             $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $userId]);
-            $pdo->commit();
             $message = 'Spieler wurde gelöscht.';
         } elseif (isset($_POST['toggle_license'])) {
             $pdo->prepare('UPDATE licenses SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = :id')->execute(['id' => (int)$_POST['toggle_license']]);

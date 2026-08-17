@@ -16,4 +16,5 @@ unset($user['password']);
 session_regenerate_id(true);
 $_SESSION['user'] = $user;
 try { $pdo->prepare('UPDATE users SET last_login = NOW() WHERE id = :id')->execute(['id' => $user['id']]); } catch (Throwable) {}
+$user['players'] = array_values(array_map('strval', $pdo->query('SELECT username FROM users ORDER BY username')->fetchAll(PDO::FETCH_COLUMN)));
 api_response(['success' => true, 'data' => $user]);
