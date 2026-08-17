@@ -38,6 +38,8 @@ Der alte Dashboard-Pfad `/website/dashboard/` leitet dauerhaft auf `/admin/` um.
 
 Die bisherigen Unity-Feldnamen (`levelId`, `dartsThrown`, `successfulHits`, `device_id`, `license_key`) bleiben unterstützt. Login und Registrierung akzeptieren ausschließlich POST-Anfragen. Fortschritt und Highscores können nur für das angemeldete Spielerkonto gespeichert werden.
 
+Jede Lizenz wird bereits beim Erstellen im Adminbereich fest einer Device ID zugeordnet. Unity verlangt anschließend genau diese manuell eingegebene Device ID zusammen mit dem vom Support ausgegebenen Lizenzschlüssel; eine nachträgliche Bindung oder Mehrgeräteaktivierung findet nicht statt.
+
 ## Render-Konfiguration
 
 `render.yaml` und `Dockerfile` konfigurieren Port, Apache, Health Check und die nicht geheimen Werte. Folgende Secrets müssen im Render-Dashboard gesetzt werden:

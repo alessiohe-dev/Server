@@ -10,11 +10,17 @@
   document.querySelector('[data-profile-close]')?.addEventListener('click', () => hide(profileModal));
   [licenseModal, profileModal].forEach((modal) => modal?.addEventListener('click', (event) => { if (event.target === modal) hide(modal); }));
 
+  document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
+    await copyText(button.dataset.copy || '');
+    button.textContent = 'Kopiert';
+  }));
+
   document.getElementById('licenseForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const button = form.querySelector('button[type="submit"]');
     const output = form.querySelector('.license-output');
+    if (!button || !output) return;
     button.disabled = true;
     button.textContent = 'Wird generiert…';
     const payload = Object.fromEntries(new FormData(form).entries());
@@ -23,15 +29,18 @@
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || 'Lizenz konnte nicht erstellt werden.');
       output.hidden = false;
-      output.innerHTML = `<b>${data.license_key}</b><button type="button">Kopieren</button>`;
-      output.querySelector('button').addEventListener('click', () => navigator.clipboard.writeText(data.license_key));
-      setTimeout(() => location.href = '/admin/?tab=licenses', 1800);
+      output.innerHTML = `<small>Lizenz für ${escapeHtml(data.device_id)}</small><b>${escapeHtml(data.license_key)}</b><button type="button">Schlüssel kopieren</button>`;
+      output.querySelector('button').addEventListener('click', async () => {
+        await copyText(data.license_key);
+        output.querySelector('button').textContent = 'Kopiert';
+      });
+      form.reset();
     } catch (error) {
       output.hidden = false;
       output.textContent = error.message;
     } finally {
       button.disabled = false;
-      button.textContent = 'Generieren';
+      button.textContent = 'Lizenzschlüssel erstellen';
     }
   });
 
@@ -52,5 +61,9 @@
   }));
 
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { if (licenseModal) hide(licenseModal); if (profileModal) hide(profileModal); } });
+  async function copyText(value){
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(value);
+    const input=document.createElement('textarea');input.value=value;input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);input.select();document.execCommand('copy');input.remove();
+  }
   function escapeHtml(value){const node=document.createElement('div');node.textContent=String(value??'');return node.innerHTML;}
 })();
