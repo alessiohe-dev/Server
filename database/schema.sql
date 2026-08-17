@@ -52,27 +52,14 @@ CREATE TABLE IF NOT EXISTS licenses (
     key_hash CHAR(64) NOT NULL,
     customer_name VARCHAR(160) NOT NULL,
     customer_email VARCHAR(254) NULL,
-    device_id VARCHAR(255) NULL,
+    device_id VARCHAR(255) NOT NULL,
     license_type VARCHAR(32) NOT NULL DEFAULT 'full',
     is_active TINYINT(1) NOT NULL DEFAULT 1,
-    activations INT UNSIGNED NOT NULL DEFAULT 0,
-    max_activations INT UNSIGNED NOT NULL DEFAULT 1,
     expires_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY licenses_key_unique (license_key),
     UNIQUE KEY licenses_hash_unique (key_hash)
-);
-
-CREATE TABLE IF NOT EXISTS license_activations (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    license_id BIGINT UNSIGNED NOT NULL,
-    device_id VARCHAR(255) NOT NULL,
-    activated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_verified_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY license_device_unique (license_id, device_id),
-    KEY license_activations_license_index (license_id)
 );
 
 CREATE TABLE IF NOT EXISTS support_requests (
