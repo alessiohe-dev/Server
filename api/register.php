@@ -12,6 +12,11 @@ $pdo = getDBConnection();
 $stmt = $pdo->prepare('SELECT id FROM users WHERE username = :username');
 $stmt->execute(['username' => $username]);
 if ($stmt->fetch()) api_error('Benutzername bereits vergeben.', 409);
-$stmt = $pdo->prepare('INSERT INTO users (username, password, created_at) VALUES (:username, :password, NOW())');
-$stmt->execute(['username' => $username, 'password' => password_hash($password, PASSWORD_DEFAULT)]);
+try {
+    $stmt = $pdo->prepare('INSERT INTO users (username, password, created_at) VALUES (:username, :password, NOW())');
+    $stmt->execute(['username' => $username, 'password' => password_hash($password, PASSWORD_DEFAULT)]);
+} catch (PDOException $exception) {
+    if ((string)$exception->getCode() === '23000') api_error('Benutzername bereits vergeben. Bitte wähle einen anderen Benutzernamen.', 409);
+    throw $exception;
+}
 api_response(['success' => true, 'message' => 'Benutzer erfolgreich registriert.'], 201);
