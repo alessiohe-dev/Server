@@ -3,7 +3,7 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 api_require_method('POST');
 $input = api_input(false);
-$username = api_username($input);
+$username = api_authenticated_username($input);
 $levelId = trim((string)($input['levelId'] ?? $input['level_id'] ?? ''));
 $score = filter_var($input['score'] ?? null, FILTER_VALIDATE_INT);
 if (!preg_match('/^[a-zA-Z0-9_-]{1,64}$/', $levelId) || $score === false || $score < 0) api_error('Username, gültige Level-ID und Score erforderlich.');

@@ -61,6 +61,15 @@ function api_username(array $input): string
     return $username;
 }
 
+function api_authenticated_username(array $input): string
+{
+    $user = current_user();
+    if (!$user || empty($user['username'])) api_error('Anmeldung erforderlich.', 401);
+    $username = trim((string)($input['username'] ?? $user['username']));
+    if (!hash_equals((string)$user['username'], $username)) api_error('Zugriff auf ein anderes Spielerkonto ist nicht erlaubt.', 403);
+    return $username;
+}
+
 set_exception_handler(static function (Throwable $exception): never {
     error_log('[api] ' . $exception->getMessage());
     api_error('Interner Serverfehler.', 500);

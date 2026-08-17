@@ -3,6 +3,8 @@ declare(strict_types=1);
 require __DIR__ . '/_bootstrap.php';
 api_require_method('GET');
 $username = api_username($_GET);
+$sessionUser = current_user();
+if (!is_admin() && (!$sessionUser || !hash_equals((string)$sessionUser['username'], $username))) api_error('Zugriff auf dieses Profil ist nicht erlaubt.', 403);
 $pdo = getDBConnection();
 $stmt = $pdo->prepare('SELECT id, username, level, experience, created_at, last_login FROM users WHERE username = :username LIMIT 1');
 $stmt->execute(['username' => $username]);
